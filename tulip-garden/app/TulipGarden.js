@@ -192,6 +192,12 @@ function TheMachine({ nextTulipNum }) {
   const [copied, setCopied] = useState("");
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [terminals, setTerminals] = useState([]);
+  const [ubuntuUnlocked, setUbuntuUnlocked] = useState(() => {
+    try { return localStorage.getItem("tg_ubuntu_unlocked") === "true"; } catch { return false; }
+  });
+  const [restrictedOpen, setRestrictedOpen] = useState(false);
+  const [restrictedPassword, setRestrictedPassword] = useState("");
+  const [restrictedError, setRestrictedError] = useState("");
   const menuRef = useRef(null);
   const isMobile = useIsMobile();
   const cols = isMobile ? "1fr" : "1fr 1fr";
@@ -224,6 +230,19 @@ function TheMachine({ nextTulipNum }) {
   };
 
   const closeTerminal = (id) => setTerminals(t => t.filter(x => x.id !== id));
+
+  const tryUnlockUbuntu = () => {
+    if (restrictedPassword === "0x4B1D") {
+      setUbuntuUnlocked(true);
+      try { localStorage.setItem("tg_ubuntu_unlocked", "true"); } catch {}
+      setRestrictedOpen(false);
+      setRestrictedPassword("");
+      setRestrictedError("");
+    } else {
+      setRestrictedError("ACCESS DENIED — incorrect password");
+      setTimeout(() => setRestrictedError(""), 2000);
+    }
+  };
 
   useEffect(() => {
     const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setFileMenuOpen(false); };
@@ -267,9 +286,15 @@ function TheMachine({ nextTulipNum }) {
               <button style={dropdownItemStyle} onClick={() => addTerminal("bash")}>
                 ⬡ New Bash Terminal
               </button>
-              <button style={dropdownItemStyle} onClick={() => addTerminal("ubuntu")}>
-                ⬡ New Ubuntu Terminal
-              </button>
+              {ubuntuUnlocked ? (
+                <button style={dropdownItemStyle} onClick={() => addTerminal("ubuntu")}>
+                  ⬡ New Ubuntu Terminal
+                </button>
+              ) : (
+                <button style={{...dropdownItemStyle, color: "#1a4a1a"}} onClick={() => { setRestrictedOpen(r => !r); setFileMenuOpen(false); }}>
+                  ⬡ [RESTRICTED]
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -354,6 +379,39 @@ function TheMachine({ nextTulipNum }) {
           </div>
         </div>
       </div>
+
+      {/* Hidden build info — visibility:hidden, must be changed to visible in DevTools */}
+      <div id="build-info" style={{visibility:"hidden", opacity:0.25, color:"#39ff14", fontSize:10, fontFamily:"monospace", padding:"4px 16px", borderTop:"1px solid #0d3d0d", letterSpacing:2}}>
+        Ubuntu 22.04.3 LTS &mdash; build: 0x4B1D
+      </div>
+
+      {/* Restricted panel */}
+      {restrictedOpen && !ubuntuUnlocked && (
+        <div style={{borderTop:"1px solid #1a4a1a", background:"#020a02", padding:20, fontFamily:"monospace"}}>
+          <div style={{color:"#1a4a1a", fontSize:10, letterSpacing:3, marginBottom:16}}>ACCESS LOCKED</div>
+          <div style={{color:"#0d3d0d", fontSize:11, marginBottom:16, lineHeight:1.8}}>
+            this terminal requires authorization.<br/>
+            password required to proceed.
+          </div>
+          <div style={{display:"flex", gap:8, alignItems:"center"}}>
+            <input
+              type="text"
+              value={restrictedPassword}
+              onChange={e => setRestrictedPassword(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && tryUnlockUbuntu()}
+              placeholder="enter password"
+              style={{background:"rgba(57,255,20,0.03)", border:"1px solid #1a4a1a", color:"#39ff14", padding:"7px 12px", fontSize:12, fontFamily:"monospace", outline:"none", width:220, letterSpacing:2}}
+            />
+            <button onClick={tryUnlockUbuntu}
+              style={{background:"transparent", border:"1px solid #1a4a1a", color:"#1a6a1a", padding:"7px 14px", cursor:"pointer", fontFamily:"monospace", fontSize:10, letterSpacing:1}}>
+              UNLOCK
+            </button>
+          </div>
+          {restrictedError && (
+            <div style={{color:"#ff4444", fontSize:10, marginTop:10, letterSpacing:1}}>{restrictedError}</div>
+          )}
+        </div>
+      )}
 
       {/* Terminal panels */}
       {terminals.map(term => (
