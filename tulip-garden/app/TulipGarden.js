@@ -32,6 +32,18 @@ function hexToRgb(hex) {
   return `${r},${g},${b}`;
 }
 
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return isMobile;
+}
+
 function ScanlineOverlay() {
   return <div style={{ position:"fixed",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none",zIndex:9999,background:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px)" }} />;
 }
@@ -54,7 +66,7 @@ function TulipCard({ id, index, content, artist, tulipNum, color, epitaph }) {
       <span style={{position:"absolute",top:4,right:4,color:`${c}80`,fontSize:10}}>┐</span>
       <span style={{position:"absolute",bottom:4,left:4,color:`${c}80`,fontSize:10}}>└</span>
       <span style={{position:"absolute",bottom:4,right:4,color:`${c}80`,fontSize:10}}>┘</span>
-      <div style={{color:`${c}80`,fontSize:10,marginBottom:8,letterSpacing:2}}>TULIP #{tulipNum!==undefined?String(tulipNum).padStart(3,"0"):String(index).padStart(3,"0")}</div>
+      <div style={{color:`${c}80`,fontSize:10,marginBottom:8,letterSpacing:2}}>TULIP #{String(index).padStart(3,"0")}</div>
       <pre style={{color:c,fontSize:14,lineHeight:1.2,margin:"0 0 12px 0",textShadow:`0 0 8px rgba(${rgb},0.6)`,minHeight:60}}>{content||MINI_TULIP}</pre>
       <div style={{color:`${c}30`,fontSize:10,marginBottom:8}}>{"⸜".repeat(12)}</div>
       {artist && <div style={{color:c,fontSize:11,opacity:0.7,marginBottom:4}}>ARTIST: <span style={{opacity:1}}>{artist}</span></div>}
@@ -75,7 +87,7 @@ function GrowingField({ tulips }) {
           return (
             <div key={t.id||i} style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
               <pre style={{color:c,fontSize:12,lineHeight:1.1,margin:0,textShadow:`0 0 6px rgba(${rgb},0.6)`,animation:`grow 0.8s ease ${i*0.15}s both`,whiteSpace:"pre"}}>{t.content||MINI_TULIP}</pre>
-              <div style={{color:`${c}70`,fontSize:9,marginTop:2}}>#{t.tulipNum!==undefined?t.tulipNum:i}</div>
+              <div style={{color:`${c}70`,fontSize:9,marginTop:2}}>#{i}</div>
             </div>
           );
         })}
@@ -127,7 +139,7 @@ function TimelineMode({ tulips }) {
       <div style={{transition:"opacity 1.2s ease, transform 1.2s ease",opacity,transform:`translateY(${translateY}px)`,textAlign:"center",zIndex:1,padding:"0 40px",maxWidth:500}}>
         {/* Tulip number */}
         <div style={{color:`${c}60`,fontSize:11,letterSpacing:4,marginBottom:20}}>
-          TULIP #{t.tulipNum!==undefined?String(t.tulipNum).padStart(3,"0"):String(current).padStart(3,"0")} · {current+1} OF {tulips.length}
+          TULIP #{String(current).padStart(3,"0")} · {current+1} OF {tulips.length}
         </div>
 
         {/* The art */}
@@ -172,140 +184,403 @@ function TimelineMode({ tulips }) {
   );
 }
 
-function TulipWorkshop({ nextTulipNum }) {
-  const [tulipArt,setTulipArt] = useState(DEFAULT_TULIP);
-  const [artistName,setArtistName] = useState("");
-  const [tulipNum,setTulipNum] = useState(nextTulipNum);
-  const [epitaph,setEpitaph] = useState("");
-  const [color,setColor] = useState("#39ff14");
-  const [copied,setCopied] = useState("");
-  useEffect(()=>{setTulipNum(nextTulipNum);},[nextTulipNum]);
+function TheMachine({ nextTulipNum }) {
+  const [tulipArt, setTulipArt] = useState(DEFAULT_TULIP);
+  const [artistName, setArtistName] = useState("");
+  const [epitaph, setEpitaph] = useState("");
+  const [color, setColor] = useState("#39ff14");
+  const [copied, setCopied] = useState("");
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
+  const [terminals, setTerminals] = useState([]);
+  const menuRef = useRef(null);
+  const isMobile = useIsMobile();
+  const cols = isMobile ? "1fr" : "1fr 1fr";
+
+  // Easter egg hidden comment: <!-- 0xFEE1DEAD -->
+  // Easter egg hidden comment: <!-- printf "%x\n" -->
 
   const jsonContent = JSON.stringify({
-    collection:"Tulip Garden",
-    tulip_number:tulipNum,
-    artist:artistName||"yourname",
-    ...(color&&color!=="#39ff14"?{color}:{}),
-    ...(epitaph?{epitaph}:{}),
-  },null,2);
+    collection: "Tulip Garden",
+    artist: artistName || "yourname",
+    ...(color && color !== "#39ff14" ? { color } : {}),
+    ...(epitaph ? { epitaph } : {}),
+  }, null, 2);
 
-  const downloadFile=(content,filename)=>{
-    const blob=new Blob([content],{type:"text/plain;charset=utf-8"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url;a.download=filename;a.click();
+  const downloadFile = (content, filename) => {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
   };
 
-  const copy=(text,label)=>{
-    navigator.clipboard.writeText(text).then(()=>{setCopied(label);setTimeout(()=>setCopied(""),2000);});
+  const copy = (text, label) => {
+    navigator.clipboard.writeText(text).then(() => { setCopied(label); setTimeout(() => setCopied(""), 2000); });
   };
 
-  const mono={fontFamily:"monospace"};
-  const box={border:"1px solid #1a4a1a",background:"rgba(57,255,20,0.03)"};
-  const lbl={color:"#1a8a1a",fontSize:10,letterSpacing:2,marginBottom:8,display:"block"};
-  const btn=(hi)=>({background:hi?"rgba(57,255,20,0.12)":"transparent",border:`1px solid ${hi?"#39ff14":"#1a4a1a"}`,color:hi?"#39ff14":"#1a6a1a",padding:"6px 12px",cursor:"pointer",...mono,fontSize:10,letterSpacing:1});
+  const addTerminal = (type) => {
+    setTerminals(t => [...t, { id: Date.now(), type }]);
+    setFileMenuOpen(false);
+  };
 
+  const closeTerminal = (id) => setTerminals(t => t.filter(x => x.id !== id));
+
+  useEffect(() => {
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setFileMenuOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const mono = { fontFamily: "monospace" };
   const previewColor = color || DEFAULT_COLOR;
   const previewRgb = hexToRgb(previewColor);
 
+  const menuBarStyle = { display: "flex", alignItems: "center", background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "0 8px", height: 32, gap: 4, position: "relative" };
+  const menuItemStyle = { color: "#7fff7f", fontSize: 11, padding: "4px 10px", cursor: "pointer", background: "transparent", border: "none", fontFamily: "monospace", letterSpacing: 1 };
+  const dropdownStyle = { position: "absolute", top: 32, left: 0, background: "#0d1a0d", border: "1px solid #1a4a1a", zIndex: 100, minWidth: 200 };
+  const dropdownItemStyle = { display: "block", width: "100%", padding: "8px 16px", color: "#7fff7f", fontSize: 11, cursor: "pointer", background: "transparent", border: "none", textAlign: "left", fontFamily: "monospace", letterSpacing: 1 };
+
   return (
-    <div style={{marginBottom:36}}>
-      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:8}}>✦ TULIP WORKSHOP</div>
-      <div style={{color:"#1a6a1a",fontSize:11,marginBottom:16,lineHeight:1.8}}>Design your tulip and preview exactly how it renders before spending sats.</div>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-        {/* Editor */}
-        <div>
-          <span style={lbl}>// DRAW YOUR TULIP (spaces only)</span>
-          <div style={box}>
-            <textarea value={tulipArt} onChange={e=>setTulipArt(e.target.value)} spellCheck={false}
-              style={{...mono,width:"100%",height:160,background:"transparent",color:"#39ff14",border:"none",padding:"12px",fontSize:13,lineHeight:1.4,resize:"vertical",outline:"none",whiteSpace:"pre",overflowWrap:"normal",overflow:"auto"}} />
-          </div>
-          <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
-            <button style={btn(false)} onClick={()=>setTulipArt(DEFAULT_TULIP)}>↺ RESET</button>
-            <button style={btn(false)} onClick={()=>copy(tulipArt,"art")}>{copied==="art"?"✓ COPIED":"⎘ COPY"}</button>
-            <button style={btn(true)} onClick={()=>downloadFile(tulipArt,`tulip${tulipNum}.txt`)}>↓ tulip{tulipNum}.txt</button>
-          </div>
-        </div>
-
-        {/* Live Preview */}
-        <div>
-          <span style={lbl}>// LIVE PREVIEW</span>
-          <div style={{border:`1px solid ${previewColor}40`,padding:"16px",minHeight:160,position:"relative",background:`rgba(${previewRgb},0.03)`}}>
-            <span style={{position:"absolute",top:4,left:4,color:`${previewColor}60`,fontSize:9}}>┌</span>
-            <span style={{position:"absolute",top:4,right:4,color:`${previewColor}60`,fontSize:9}}>┐</span>
-            <span style={{position:"absolute",bottom:4,left:4,color:`${previewColor}60`,fontSize:9}}>└</span>
-            <span style={{position:"absolute",bottom:4,right:4,color:`${previewColor}60`,fontSize:9}}>┘</span>
-            <div style={{color:`${previewColor}70`,fontSize:9,letterSpacing:2,marginBottom:8}}>TULIP #{String(tulipNum).padStart(3,"0")}</div>
-            <pre style={{...mono,color:previewColor,fontSize:14,lineHeight:1.3,margin:0,textShadow:`0 0 8px rgba(${previewRgb},0.6)`,whiteSpace:"pre"}}>{tulipArt||" "}</pre>
-            <div style={{color:`${previewColor}30`,fontSize:10,marginTop:8}}>{"⸜".repeat(12)}</div>
-            {artistName&&<div style={{color:`${previewColor}90`,fontSize:10,marginTop:4}}>{artistName}</div>}
-            {epitaph&&<div style={{color:`${previewColor}70`,fontSize:10,fontStyle:"italic",marginTop:4}}>"{epitaph}"</div>}
-          </div>
-          <div style={{color:"#1a6a1a",fontSize:10,marginTop:6}}>↑ live preview with your chosen color</div>
-        </div>
+    <div style={{ marginBottom: 36, border: "1px solid #1a4a1a", background: "#020a02" }}>
+      {/* Title bar */}
+      <div style={{ background: "#061006", borderBottom: "1px solid #0d3d0d", padding: "6px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 3, ...mono }}>THE MACHINE</span>
+        <span style={{ color: "#0d3d0d", fontSize: 10, ...mono }}>tulip.txt — editor</span>
       </div>
 
-      {/* Metadata fields */}
-      <div style={{...box,padding:16,marginBottom:12}}>
-        <span style={lbl}>// GENERATE METADATA FILE</span>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-          <div>
-            <div style={{color:"#1a6a1a",fontSize:10,marginBottom:6}}>ARTIST NAME</div>
-            <input type="text" value={artistName} onChange={e=>setArtistName(e.target.value)} placeholder="yourname"
-              style={{...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color:"#39ff14",padding:"8px 10px",fontSize:12,width:"100%",outline:"none"}} />
-          </div>
-          <div>
-            <div style={{color:"#1a6a1a",fontSize:10,marginBottom:6}}>TULIP NUMBER <span style={{color:"#0d4a0d"}}>(next: {nextTulipNum})</span></div>
-            <input type="number" value={tulipNum} onChange={e=>setTulipNum(parseInt(e.target.value)||0)} min={0}
-              style={{...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color:"#39ff14",padding:"8px 10px",fontSize:12,width:"100%",outline:"none"}} />
-          </div>
+      {/* Menu bar */}
+      <div style={menuBarStyle} ref={menuRef}>
+        <div style={{ position: "relative" }}>
+          <button style={{ ...menuItemStyle, background: fileMenuOpen ? "rgba(57,255,20,0.1)" : "transparent" }}
+            onClick={() => setFileMenuOpen(f => !f)}>
+            File ▾
+          </button>
+          {fileMenuOpen && (
+            <div style={dropdownStyle}>
+              <button style={dropdownItemStyle} onClick={() => { downloadFile(tulipArt, "tulip.txt"); setFileMenuOpen(false); }}>
+                💾 Save tulip.txt
+              </button>
+              <button style={dropdownItemStyle} onClick={() => { downloadFile(jsonContent, "tulip.json"); setFileMenuOpen(false); }}>
+                💾 Save tulip.json
+              </button>
+              <div style={{ borderTop: "1px solid #1a4a1a", margin: "4px 0" }} />
+              <button style={dropdownItemStyle} onClick={() => addTerminal("bash")}>
+                ⬡ New Bash Terminal
+              </button>
+              <button style={dropdownItemStyle} onClick={() => addTerminal("ubuntu")}>
+                ⬡ New Ubuntu Terminal
+              </button>
+            </div>
+          )}
         </div>
+        <span style={{ color: "#0d3d0d", fontSize: 10, marginLeft: "auto", ...mono }}>tulip-garden — editor</span>
+      </div>
 
-        {/* Color picker */}
-        <div style={{marginBottom:12}}>
-          <div style={{color:"#1a6a1a",fontSize:10,marginBottom:6}}>FLOWER COLOR <span style={{color:"#0d4a0d"}}>(optional — hex code)</span></div>
-          <div style={{display:"flex",gap:10,alignItems:"center"}}>
-            <input type="color" value={color} onChange={e=>setColor(e.target.value)}
-              style={{width:40,height:36,border:"1px solid #1a4a1a",background:"transparent",cursor:"pointer",padding:2}} />
-            <input type="text" value={color} onChange={e=>setColor(e.target.value)} placeholder="#39ff14"
-              style={{...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color,padding:"8px 10px",fontSize:12,width:120,outline:"none"}} />
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["#ff6b9d","#00d4ff","#ffaa00","#a855f7","#ff4444","#39ff14","#ffffff"].map(c=>(
-                <div key={c} onClick={()=>setColor(c)} style={{width:20,height:20,background:c,cursor:"pointer",border:color===c?"2px solid white":"1px solid #1a4a1a",borderRadius:2}} />
-              ))}
+      {/* Editor area */}
+      <div style={{ padding: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: cols, gap: 16, marginBottom: 16 }}>
+          {/* Tulip editor */}
+          <div>
+            <div style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 2, marginBottom: 8 }}>// tulip.txt — draw your flower (spaces only, no tabs)</div>
+            <textarea value={tulipArt} onChange={e => setTulipArt(e.target.value)} spellCheck={false}
+              style={{ ...mono, width: "100%", height: 180, background: "rgba(0,0,0,0.4)", color: "#39ff14", border: "1px solid #1a4a1a", padding: "12px", fontSize: 13, lineHeight: 1.4, resize: "vertical", outline: "none", whiteSpace: "pre", overflowWrap: "normal", overflow: "auto" }} />
+            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+              <button onClick={() => setTulipArt(DEFAULT_TULIP)} style={{ ...mono, background: "transparent", border: "1px solid #1a4a1a", color: "#1a6a1a", padding: "5px 10px", cursor: "pointer", fontSize: 10 }}>↺ reset</button>
+              <button onClick={() => copy(tulipArt, "art")} style={{ ...mono, background: "transparent", border: "1px solid #1a4a1a", color: "#1a6a1a", padding: "5px 10px", cursor: "pointer", fontSize: 10 }}>{copied === "art" ? "✓ copied" : "⎘ copy"}</button>
+            </div>
+          </div>
+
+          {/* Live preview */}
+          <div>
+            <div style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 2, marginBottom: 8 }}>// live preview — ordinals.com rendering</div>
+            <div style={{ border: `1px solid ${previewColor}40`, padding: 16, minHeight: 180, position: "relative", background: `rgba(${previewRgb},0.03)` }}>
+              <span style={{ position: "absolute", top: 4, left: 4, color: `${previewColor}60`, fontSize: 9 }}>┌</span>
+              <span style={{ position: "absolute", top: 4, right: 4, color: `${previewColor}60`, fontSize: 9 }}>┐</span>
+              <span style={{ position: "absolute", bottom: 4, left: 4, color: `${previewColor}60`, fontSize: 9 }}>└</span>
+              <span style={{ position: "absolute", bottom: 4, right: 4, color: `${previewColor}60`, fontSize: 9 }}>┘</span>
+              <div style={{ color: `${previewColor}60`, fontSize: 9, letterSpacing: 2, marginBottom: 8 }}>TULIP #??? — assigned at inscription</div>
+              <pre style={{ ...mono, color: previewColor, fontSize: 14, lineHeight: 1.3, margin: 0, textShadow: `0 0 8px rgba(${previewRgb},0.6)`, whiteSpace: "pre" }}>{tulipArt || " "}</pre>
+              <div style={{ color: `${previewColor}30`, fontSize: 10, marginTop: 8 }}>{"⸜".repeat(12)}</div>
+              {artistName && <div style={{ color: `${previewColor}90`, fontSize: 10, marginTop: 4 }}>{artistName}</div>}
+              {epitaph && <div style={{ color: `${previewColor}70`, fontSize: 10, fontStyle: "italic", marginTop: 4 }}>"{epitaph}"</div>}
             </div>
           </div>
         </div>
 
-        {/* Epitaph */}
-        <div style={{marginBottom:14}}>
-          <div style={{color:"#1a6a1a",fontSize:10,marginBottom:6}}>EPITAPH <span style={{color:"#0d4a0d"}}>(optional — your words, forever on Bitcoin)</span></div>
-          <input type="text" value={epitaph} onChange={e=>setEpitaph(e.target.value)} placeholder="here bloomed a builder"
-            style={{...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color:"#7fff7f",padding:"8px 10px",fontSize:12,width:"100%",outline:"none",fontStyle:"italic"}} />
+        {/* Metadata */}
+        <div style={{ border: "1px solid #1a4a1a", padding: 14, marginBottom: 12, background: "rgba(0,0,0,0.2)" }}>
+          <div style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 2, marginBottom: 12 }}>// tulip.json — metadata</div>
+          <div style={{ display: "grid", gridTemplateColumns: cols, gap: 12, marginBottom: 12 }}>
+            <div>
+              <div style={{ color: "#1a6a1a", fontSize: 10, marginBottom: 5 }}>artist</div>
+              <input type="text" value={artistName} onChange={e => setArtistName(e.target.value)} placeholder="yourname"
+                style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a", color: "#39ff14", padding: "7px 10px", fontSize: 12, width: "100%", outline: "none" }} />
+            </div>
+            <div>
+              <div style={{ color: "#1a6a1a", fontSize: 10, marginBottom: 5 }}>color <span style={{ color: "#0d4a0d" }}>(optional — or leave blank to unidentify)</span></div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <input type="color" value={color} onChange={e => setColor(e.target.value)}
+                  style={{ width: 34, height: 32, border: "1px solid #1a4a1a", background: "transparent", cursor: "pointer", padding: 1 }} />
+                <input type="text" value={color} onChange={e => setColor(e.target.value)} placeholder="#39ff14"
+                  style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a", color, padding: "7px 10px", fontSize: 12, width: 110, outline: "none" }} />
+                <div style={{ display: "flex", gap: 4 }}>
+                  {["#ff6b9d", "#00d4ff", "#ffaa00", "#a855f7", "#39ff14", "#ffffff"].map(c => (
+                    <div key={c} onClick={() => setColor(c)} style={{ width: 18, height: 18, background: c, cursor: "pointer", border: color === c ? "2px solid white" : "1px solid #1a4a1a", borderRadius: 2 }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ color: "#1a6a1a", fontSize: 10, marginBottom: 5 }}>epitaph <span style={{ color: "#0d4a0d" }}>(optional — your words, forever on Bitcoin)</span></div>
+            <input type="text" value={epitaph} onChange={e => setEpitaph(e.target.value)} placeholder="here bloomed a builder"
+              style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a", color: "#7fff7f", padding: "7px 10px", fontSize: 12, width: "100%", outline: "none", fontStyle: "italic" }} />
+          </div>
+          <pre style={{ ...mono, background: "rgba(0,0,0,0.4)", border: "1px solid #0d3d0d", padding: "10px 14px", fontSize: 11, color: "#7fff7f", marginBottom: 10, lineHeight: 1.7 }}>{jsonContent}</pre>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => copy(jsonContent, "json")} style={{ ...mono, background: "transparent", border: "1px solid #1a4a1a", color: "#1a6a1a", padding: "5px 10px", cursor: "pointer", fontSize: 10 }}>{copied === "json" ? "✓ copied" : "⎘ copy json"}</button>
+          </div>
         </div>
 
-        <pre style={{...mono,background:"rgba(0,0,0,0.3)",border:"1px solid #0d3d0d",padding:"10px 14px",fontSize:12,color:"#7fff7f",marginBottom:10,lineHeight:1.7}}>{jsonContent}</pre>
-        <div style={{display:"flex",gap:8}}>
-          <button style={btn(false)} onClick={()=>copy(jsonContent,"json")}>{copied==="json"?"✓ COPIED":"⎘ COPY JSON"}</button>
-          <button style={btn(true)} onClick={()=>downloadFile(jsonContent,`tulip${tulipNum}.json`)}>↓ tulip{tulipNum}.json</button>
+        {/* Checklist */}
+        <div style={{ border: "1px solid #1a4a1a", padding: "10px 14px", background: "rgba(0,0,0,0.1)" }}>
+          <div style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 2, marginBottom: 6 }}>// checklist</div>
+          <div style={{ color: "#1a6a1a", fontSize: 11, lineHeight: 2.2, ...mono }}>
+            ☐ Preview matches your vision<br />
+            ☐ Spaces used — not tabs<br />
+            ☐ Files saved via File → Save<br />
+            ☐ Artist name + epitaph filled (optional but permanent)<br />
+            ☐ Tulip number auto-assigned by inscription order
+          </div>
         </div>
       </div>
 
-      <div style={{border:"1px solid #1a4a1a",background:"rgba(57,255,20,0.02)",padding:"12px 16px"}}>
-        <div style={{color:"#1a8a1a",fontSize:10,letterSpacing:2,marginBottom:6}}>// CHECKLIST BEFORE INSCRIBING</div>
-        <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.3,...mono}}>
-          ☐ Preview looks correct above<br/>
-          ☐ Spaces used (not tabs)<br/>
-          ☐ Both files downloaded: <span style={{color:"#7fff7f"}}>tulip{tulipNum}.txt</span> and <span style={{color:"#7fff7f"}}>tulip{tulipNum}.json</span><br/>
-          ☐ Artist name + epitaph filled in (optional but forever)<br/>
-          ☐ Tulip number confirmed
+      {/* Terminal panels */}
+      {terminals.map(term => (
+        <div key={term.id} style={{ borderTop: "1px solid #1a4a1a" }}>
+          {term.type === "bash" ? (
+            <BashTerminal onClose={() => closeTerminal(term.id)} />
+          ) : (
+            <UbuntuTerminal onClose={() => closeTerminal(term.id)} />
+          )}
         </div>
+      ))}
+    </div>
+  );
+}
+
+function BashTerminal({ onClose }) {
+  const [lines, setLines] = useState(["bash-5.2$ "]);
+  const [input, setInput] = useState("");
+  const bottomRef = useRef(null);
+  const mono = { fontFamily: "monospace" };
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lines]);
+
+  const handleKey = (e) => {
+    if (e.key !== "Enter") return;
+    const cmd = input.trim();
+    const newLines = [...lines.slice(0, -1), `bash-5.2$ ${cmd}`];
+
+    // Only accept printf commands
+    const printfMatch = cmd.match(/^printf\s+"?%x\\n"?\s+(\d+)$/);
+    if (printfMatch) {
+      const num = parseInt(printfMatch[1]);
+      const hex = num.toString(16);
+      newLines.push(hex);
+    } else if (cmd === "") {
+      // nothing
+    } else if (cmd.startsWith("printf")) {
+      newLines.push(`printf: invalid format — try: printf "%x\n" 672274793`);
+    } else {
+      newLines.push(`bash: ${cmd.split(" ")[0]}: command not found`);
+    }
+
+    newLines.push("bash-5.2$ ");
+    setLines(newLines);
+    setInput("");
+  };
+
+  return (
+    <div style={{ background: "#020a02", ...mono }}>
+      <div style={{ background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "4px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: "#1a6a1a", fontSize: 10, letterSpacing: 2 }}>BASH</span>
+        <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#1a6a1a", cursor: "pointer", fontSize: 14, padding: "0 4px" }}>×</button>
+      </div>
+      <div style={{ padding: "10px 14px", height: 180, overflowY: "auto", fontSize: 12, color: "#39ff14" }}>
+        {lines.map((l, i) => (
+          <div key={i}>{i === lines.length - 1 ? (
+            <span>
+              {l}
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} autoFocus
+                style={{ background: "transparent", border: "none", outline: "none", color: "#39ff14", fontSize: 12, fontFamily: "monospace", width: "60%" }} />
+            </span>
+          ) : l}</div>
+        ))}
+        <div ref={bottomRef} />
       </div>
     </div>
   );
 }
+
+function UbuntuTerminal({ onClose }) {
+  const [stage, setStage] = useState("login"); // login | password | root | done
+  const [lines, setLines] = useState(["Ubuntu 22.04.3 LTS tulip-garden tty1", "", "tulip-garden login: "]);
+  const [input, setInput] = useState("");
+  const [showInput, setShowInput] = useState(true);
+  const [kernelPanic, setKernelPanic] = useState(false);
+  const bottomRef = useRef(null);
+  const mono = { fontFamily: "monospace" };
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lines, kernelPanic]);
+
+  const addLine = (line) => setLines(l => [...l, line]);
+
+  const handleKey = (e) => {
+    if (e.key !== "Enter") return;
+    const cmd = input.trim();
+    setInput("");
+
+    if (stage === "login") {
+      setLines(l => [...l.slice(0, -1), `tulip-garden login: ${cmd}`, "Password: "]);
+      if (cmd === "root") {
+        setStage("password");
+      } else {
+        setTimeout(() => {
+          setLines(l => [...l, "Login incorrect", "", "tulip-garden login: "]);
+        }, 800);
+        setStage("login");
+      }
+      return;
+    }
+
+    if (stage === "password") {
+      // Password hidden — just shows blank
+      setLines(l => [...l.slice(0, -1), "Password: "]);
+      if (cmd === "@") {
+        setTimeout(() => {
+          setLines(l => [...l,
+            "",
+            "Welcome to Ubuntu 22.04.3 LTS (GNU/Linux 5.15.0-91-generic x86_64)",
+            "",
+            "Last login: " + new Date().toUTCString(),
+            "",
+            "root@tulip-garden:~# "
+          ]);
+          setStage("root");
+        }, 600);
+      } else {
+        setTimeout(() => {
+          setLines(l => [...l, "", "Login incorrect", "", "tulip-garden login: "]);
+          setStage("login");
+        }, 800);
+      }
+      return;
+    }
+
+    if (stage === "root") {
+      setLines(l => [...l.slice(0, -1), `root@tulip-garden:~# ${cmd}`]);
+
+      // Check for printf
+      const printfMatch = cmd.match(/printf\s+"?%x\\n"?\s+(\d+)/);
+      if (printfMatch) {
+        const num = parseInt(printfMatch[1]);
+        setLines(l => [...l, num.toString(16), "", "root@tulip-garden:~# "]);
+        return;
+      }
+
+      // Check for the reboot syscall easter egg
+      const rebootMatch = cmd.includes("0xFEE1DEAD") && cmd.includes("0x28121969");
+      if (rebootMatch) {
+        setShowInput(false);
+        setKernelPanic(true);
+        return;
+      }
+
+      // Any other command
+      setLines(l => [...l,
+        `bash: ${cmd.split("(")[0].trim()}: Permission denied`,
+        "hint: this machine only reboots.",
+        "",
+        "root@tulip-garden:~# "
+      ]);
+    }
+  };
+
+  if (kernelPanic) {
+    return (
+      <div style={{ background: "#020a02", ...mono }}>
+        <div style={{ background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "4px 12px", display: "flex", justifyContent: "space-between" }}>
+          <span style={{ color: "#ff4444", fontSize: 10, letterSpacing: 2 }}>UBUNTU — KERNEL PANIC</span>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#1a6a1a", cursor: "pointer", fontSize: 14 }}>×</button>
+        </div>
+        <KernelPanicAnimation onDone={() => { setKernelPanic(false); setStage("login"); setLines(["Ubuntu 22.04.3 LTS tulip-garden tty1", "", "tulip-garden login: "]); setShowInput(true); }} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "#020a02", ...mono }}>
+      <div style={{ background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "4px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: "#1a6a1a", fontSize: 10, letterSpacing: 2 }}>UBUNTU 22.04.3 LTS</span>
+        <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#1a6a1a", cursor: "pointer", fontSize: 14, padding: "0 4px" }}>×</button>
+      </div>
+      <div style={{ padding: "10px 14px", height: 220, overflowY: "auto", fontSize: 12, color: "#39ff14" }}>
+        {lines.map((l, i) => (
+          <div key={i} style={{ color: i < 3 ? "#1a8a1a" : "#39ff14" }}>
+            {i === lines.length - 1 && showInput ? (
+              <span>
+                {l}
+                <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} autoFocus
+                  style={{ background: "transparent", border: "none", outline: "none", color: "#39ff14", fontSize: 12, fontFamily: "monospace", width: "60%", ...(stage === "password" ? { WebkitTextSecurity: "disc" } : {}) }} />
+              </span>
+            ) : l}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
+}
+
+function KernelPanicAnimation({ onDone }) {
+  const [lines, setLines] = useState([]);
+  const mono = { fontFamily: "monospace" };
+
+  const panicLines = [
+    { text: "", delay: 0 },
+    { text: "[    0.000000] KERNEL PANIC — not syncing", delay: 100 },
+    { text: "[    0.000001] magic value accepted: 0xFEE1DEAD", delay: 400 },
+    { text: "[    0.000002] magic2 verified: 0x28121969", delay: 700 },
+    { text: "[    0.000003] CR0: 0x4B1D", delay: 1000 },
+    { text: "[    0.000004] process: tulip (pid: 0)", delay: 1300 },
+    { text: "[    0.000005] CPU: 0 PID: 0 Comm: tulip Not tainted", delay: 1600 },
+    { text: "[    0.000006] ...", delay: 1900 },
+    { text: "[    0.000007] ...", delay: 2100 },
+    { text: "[    0.000008] memory fault at 0xefface", delay: 2400, color: "#ff4444" },
+    { text: "[    0.000009] system halted.", delay: 2800 },
+    { text: "", delay: 3200 },
+    { text: "awaiting reboot...", delay: 3600 },
+  ];
+
+  useEffect(() => {
+    panicLines.forEach(({ text, delay, color }) => {
+      setTimeout(() => {
+        setLines(l => [...l, { text, color }]);
+      }, delay);
+    });
+    setTimeout(onDone, 7000);
+  }, []);
+
+  return (
+    <div style={{ padding: "14px", height: 260, overflowY: "auto", fontSize: 12, ...mono }}>
+      {lines.map((l, i) => (
+        <div key={i} style={{ color: l.color || (l.text.includes("0xefface") ? "#ff4444" : "#39ff14"), marginBottom: 2 }}>{l.text}</div>
+      ))}
+    </div>
+  );
+}
+
 
 function MarketplacePoll() {
   const [votes,setVotes] = useState(()=>{const i={};MARKETPLACES.filter(m=>m.status==="active").forEach(m=>{i[m.id]=0;});return i;});
@@ -453,7 +728,7 @@ export default function TulipGarden() {
             try{
               const j=JSON.parse(text);
               artist=j.artist;
-              tulipNum=j.tulip_number??i;
+              
               color=j.color||null;
               epitaph=j.epitaph||null;
             }catch{content=text.trim();}
@@ -582,7 +857,7 @@ export default function TulipGarden() {
                       <div>@ (root) → {PARENT_ID.slice(0,16)}...</div>
                       {tulips.map((t,i)=>(
                         <div key={t.id} style={{paddingLeft:16}}>
-                          <span style={{color:t.color||DEFAULT_COLOR}}>└──</span> tulip #{t.tulipNum!==undefined?t.tulipNum:i} {t.artist?`[${t.artist}]`:""} →{" "}
+                          <span style={{color:t.color||DEFAULT_COLOR}}>└──</span> tulip #{i} {t.artist?`[${t.artist}]`:""} →{" "}
                           <a href={`https://ordinals.com/inscription/${t.id}`} target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>{t.id.slice(0,12)}...</a>
                         </div>
                       ))}
@@ -598,7 +873,7 @@ export default function TulipGarden() {
         {tab==="plant"&&(
           <>
             <div style={{color:"#1a8a1a",fontSize:11,letterSpacing:3,marginBottom:20,borderBottom:"1px solid #0d3d0d",paddingBottom:8}}>// PLANT A TULIP</div>
-            <TulipWorkshop nextTulipNum={nextTulipNum} />
+            <TheMachine nextTulipNum={nextTulipNum} />
             <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16,borderBottom:"1px solid #0d3d0d",paddingBottom:8}}>// INSTRUCTIONS</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:24}}>
               <div>
