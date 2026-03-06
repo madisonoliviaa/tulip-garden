@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const PARENT_ID = "5d80c89b9beb2be790fcb2af9b5558d5965ef7bd1c45a0908222011ec8addadei0";
 const ORDINALS_BASE = "https://ordinals.com";
 const DEFAULT_COLOR = "#39ff14";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://tulip-garden-api.fly.dev/api";
 
 const HEADER_ART = `████████╗██╗   ██╗██╗     ██╗██████╗      ██████╗  █████╗ ██████╗ ██████╗ ███████╗███╗   ██╗
 ╚══██╔══╝██║   ██║██║     ██║██╔══██╗    ██╔════╝ ██╔══██╗██╔══██╗██╔══██╗██╔════╝████╗  ██║
@@ -56,7 +57,7 @@ function Cursor() {
 function TulipCard({ id, index, content, artist, tulipNum, color, epitaph }) {
   const [visible,setVisible] = useState(false);
   useEffect(()=>{ const t=setTimeout(()=>setVisible(true),index*120); return ()=>clearTimeout(t); },[index]);
-  const isEasterEgg = artist === "rodney" && color === "#efface" && epitaph === "my name is yendor";
+  const isEasterEgg = artist === "rodney" && color === "#efface" && epitaph === "Goodbye, rogue...";
   const derivedColor = id ? `#${id.slice(0,6)}` : DEFAULT_COLOR;
   const c = isEasterEgg ? "#FFD700" : (color || derivedColor);
   const rgb = hexToRgb(c);
@@ -195,15 +196,14 @@ function TheMachine({ nextTulipNum }) {
   const [copied, setCopied] = useState("");
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [terminals, setTerminals] = useState([]);
+  const [activeTerminalId, setActiveTerminalId] = useState(null);
   const [ubuntuUnlocked, setUbuntuUnlocked] = useState(() => {
     try { return localStorage.getItem("tg_ubuntu_unlocked") === "true"; } catch { return false; }
   });
-  const [restrictedOpen, setRestrictedOpen] = useState(false);
-  const [restrictedPassword, setRestrictedPassword] = useState("");
-  const [restrictedError, setRestrictedError] = useState("");
   const menuRef = useRef(null);
   const isMobile = useIsMobile();
   const cols = isMobile ? "1fr" : "1fr 1fr";
+  const activeId = activeTerminalId && terminals.find(t => t.id === activeTerminalId) ? activeTerminalId : (terminals.length > 0 ? terminals[terminals.length - 1].id : null);
 
   const jsonContent = JSON.stringify({
     collection: "Tulip Garden",
@@ -225,23 +225,15 @@ function TheMachine({ nextTulipNum }) {
   };
 
   const addTerminal = (type) => {
-    setTerminals(t => [...t, { id: Date.now(), type }]);
+    const id = Date.now();
+    setTerminals(t => [...t, { id, type }]);
+    setActiveTerminalId(id);
     setFileMenuOpen(false);
   };
 
-  const closeTerminal = (id) => setTerminals(t => t.filter(x => x.id !== id));
-
-  const tryUnlockUbuntu = () => {
-    if (restrictedPassword === "0x4B1D") {
-      setUbuntuUnlocked(true);
-      try { localStorage.setItem("tg_ubuntu_unlocked", "true"); } catch {}
-      setRestrictedOpen(false);
-      setRestrictedPassword("");
-      setRestrictedError("");
-    } else {
-      setRestrictedError("ACCESS DENIED — incorrect password");
-      setTimeout(() => setRestrictedError(""), 2000);
-    }
+  const closeTerminal = (id) => {
+    setTerminals(t => t.filter(x => x.id !== id));
+    setActiveTerminalId(prev => prev === id ? null : prev);
   };
 
   useEffect(() => {
@@ -260,7 +252,7 @@ function TheMachine({ nextTulipNum }) {
   const dropdownItemStyle = { display: "block", width: "100%", padding: "8px 16px", color: "#7fff7f", fontSize: 11, cursor: "pointer", background: "transparent", border: "none", textAlign: "left", fontFamily: "monospace", letterSpacing: 1 };
 
   return (
-    <div style={{ marginBottom: 36, border: "1px solid #1a4a1a", background: "#020a02" }}>
+    <div style={{ marginBottom: 36, border: "1px solid #39ff1440", background: "#020a02", boxShadow: "0 0 10px rgba(57,255,20,0.15), 0 0 30px rgba(57,255,20,0.06), inset 0 0 15px rgba(57,255,20,0.03)" }}>
       {/* Title bar */}
       <div style={{ background: "#061006", borderBottom: "1px solid #0d3d0d", padding: "6px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 3, ...mono }}>THE MACHINE</span>
@@ -291,7 +283,7 @@ function TheMachine({ nextTulipNum }) {
                   ⬡ New Ubuntu Terminal
                 </button>
               ) : (
-                <button style={{...dropdownItemStyle, color: "#1a4a1a"}} onClick={() => { setRestrictedOpen(r => !r); setFileMenuOpen(false); }}>
+                <button style={{...dropdownItemStyle, color: "#1a4a1a"}} onClick={() => addTerminal("restricted")}>
                   ⬡ [RESTRICTED]
                 </button>
               )}
@@ -342,7 +334,7 @@ function TheMachine({ nextTulipNum }) {
                 style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a", color: "#39ff14", padding: "7px 10px", fontSize: 12, width: "100%", outline: "none" }} />
             </div>
             <div>
-              <div style={{ color: "#1a6a1a", fontSize: 10, marginBottom: 5 }}>color <span style={{ color: "#0d4a0d" }}>(optional — or leave blank to unidentify)</span></div>
+              <div style={{ color: "#1a6a1a", fontSize: 10, marginBottom: 5 }}>color <span style={{ color: "#0d4a0d" }}>(optional — or leave blank to <a href="https://docs.ordinals.com/inscriptions/metadata.html" target="_blank" rel="noopener noreferrer" style={{ color: "#0d4a0d", textDecoration: "none" }}>unidentify</a>)</span></div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <input type="color" value={color} onChange={e => setColor(e.target.value)}
                   style={{ width: 34, height: 32, border: "1px solid #1a4a1a", background: "transparent", cursor: "pointer", padding: 1 }} />
@@ -385,49 +377,53 @@ function TheMachine({ nextTulipNum }) {
         Ubuntu 22.04.3 LTS &mdash; build: 0x4B1D
       </div>
 
-      {/* Restricted panel */}
-      {restrictedOpen && !ubuntuUnlocked && (
-        <div style={{borderTop:"1px solid #1a4a1a", background:"#020a02", padding:20, fontFamily:"monospace"}}>
-          <div style={{color:"#1a4a1a", fontSize:10, letterSpacing:3, marginBottom:16}}>ACCESS LOCKED</div>
-          <div style={{color:"#0d3d0d", fontSize:11, marginBottom:16, lineHeight:1.8}}>
-            this terminal requires authorization.<br/>
-            password required to proceed.
+      {/* Tabbed terminal area */}
+      {terminals.length > 0 && (
+        <div style={{ borderTop: "1px solid #39ff1430" }}>
+          <div style={{ display: "flex", background: "#0d1a0d" }}>
+            {terminals.map(term => (
+              <div key={term.id}
+                onClick={() => setActiveTerminalId(term.id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "5px 14px",
+                  cursor: "pointer",
+                  background: activeId === term.id ? "#020a02" : "transparent",
+                  borderRight: "1px solid #1a4a1a",
+                  borderBottom: activeId === term.id ? "1px solid #020a02" : "1px solid #1a4a1a",
+                  color: activeId === term.id ? "#39ff14" : "#1a6a1a",
+                  fontSize: 10, fontFamily: "monospace", letterSpacing: 2
+                }}>
+                <span>{term.type === "bash" ? "BASH" : term.type === "ubuntu" ? "UBUNTU" : "RESTRICTED"}</span>
+                <button onClick={(e) => { e.stopPropagation(); closeTerminal(term.id); }}
+                  style={{ background: "transparent", border: "none", color: activeId === term.id ? "#39ff1480" : "#0d3d0d", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+              </div>
+            ))}
           </div>
-          <div style={{display:"flex", gap:8, alignItems:"center"}}>
-            <input
-              type="text"
-              value={restrictedPassword}
-              onChange={e => setRestrictedPassword(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && tryUnlockUbuntu()}
-              placeholder="enter password"
-              style={{background:"rgba(57,255,20,0.03)", border:"1px solid #1a4a1a", color:"#39ff14", padding:"7px 12px", fontSize:12, fontFamily:"monospace", outline:"none", width:220, letterSpacing:2}}
-            />
-            <button onClick={tryUnlockUbuntu}
-              style={{background:"transparent", border:"1px solid #1a4a1a", color:"#1a6a1a", padding:"7px 14px", cursor:"pointer", fontFamily:"monospace", fontSize:10, letterSpacing:1}}>
-              UNLOCK
-            </button>
-          </div>
-          {restrictedError && (
-            <div style={{color:"#ff4444", fontSize:10, marginTop:10, letterSpacing:1}}>{restrictedError}</div>
-          )}
+          {terminals.map(term => (
+            activeId === term.id && (
+              <div key={term.id}>
+                {term.type === "bash" ? (
+                  <BashTerminal onClose={() => closeTerminal(term.id)} noHeader />
+                ) : term.type === "ubuntu" ? (
+                  <UbuntuTerminal onClose={() => closeTerminal(term.id)} noHeader />
+                ) : (
+                  <RestrictedTerminal onUnlock={() => {
+                    setUbuntuUnlocked(true);
+                    try { localStorage.setItem("tg_ubuntu_unlocked", "true"); } catch {}
+                    closeTerminal(term.id);
+                  }} />
+                )}
+              </div>
+            )
+          ))}
         </div>
       )}
-
-      {/* Terminal panels */}
-      {terminals.map(term => (
-        <div key={term.id} style={{ borderTop: "1px solid #1a4a1a" }}>
-          {term.type === "bash" ? (
-            <BashTerminal onClose={() => closeTerminal(term.id)} />
-          ) : (
-            <UbuntuTerminal onClose={() => closeTerminal(term.id)} />
-          )}
-        </div>
-      ))}
     </div>
   );
 }
 
-function BashTerminal({ onClose }) {
+function BashTerminal({ onClose, noHeader }) {
   const [lines, setLines] = useState(["bash-5.2$ "]);
   const [input, setInput] = useState("");
   const bottomRef = useRef(null);
@@ -461,10 +457,12 @@ function BashTerminal({ onClose }) {
 
   return (
     <div style={{ background: "#020a02", ...mono }}>
-      <div style={{ background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "4px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: "#1a6a1a", fontSize: 10, letterSpacing: 2 }}>BASH</span>
-        <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#1a6a1a", cursor: "pointer", fontSize: 14, padding: "0 4px" }}>×</button>
-      </div>
+      {!noHeader && (
+        <div style={{ background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "4px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ color: "#1a6a1a", fontSize: 10, letterSpacing: 2 }}>BASH</span>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#1a6a1a", cursor: "pointer", fontSize: 14, padding: "0 4px" }}>×</button>
+        </div>
+      )}
       <div style={{ padding: "10px 14px", height: 180, overflowY: "auto", fontSize: 12, color: "#39ff14" }}>
         {lines.map((l, i) => (
           <div key={i}>{i === lines.length - 1 ? (
@@ -481,7 +479,7 @@ function BashTerminal({ onClose }) {
   );
 }
 
-function UbuntuTerminal({ onClose }) {
+function UbuntuTerminal({ onClose, noHeader }) {
   const [stage, setStage] = useState("login"); // login | password | root | done
   const [lines, setLines] = useState(["Ubuntu 22.04.3 LTS tulip-garden tty1", "", "tulip-garden login: "]);
   const [input, setInput] = useState("");
@@ -568,10 +566,12 @@ function UbuntuTerminal({ onClose }) {
   if (kernelPanic) {
     return (
       <div style={{ background: "#020a02", ...mono }}>
-        <div style={{ background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "4px 12px", display: "flex", justifyContent: "space-between" }}>
-          <span style={{ color: "#ff4444", fontSize: 10, letterSpacing: 2 }}>UBUNTU — KERNEL PANIC</span>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#1a6a1a", cursor: "pointer", fontSize: 14 }}>×</button>
-        </div>
+        {!noHeader && (
+          <div style={{ background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "4px 12px", display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: "#ff4444", fontSize: 10, letterSpacing: 2 }}>UBUNTU — KERNEL PANIC</span>
+            <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#1a6a1a", cursor: "pointer", fontSize: 14 }}>×</button>
+          </div>
+        )}
         <KernelPanicAnimation onDone={() => { setKernelPanic(false); setStage("login"); setLines(["Ubuntu 22.04.3 LTS tulip-garden tty1", "", "tulip-garden login: "]); setShowInput(true); }} />
       </div>
     );
@@ -579,10 +579,12 @@ function UbuntuTerminal({ onClose }) {
 
   return (
     <div style={{ background: "#020a02", ...mono }}>
-      <div style={{ background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "4px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: "#1a6a1a", fontSize: 10, letterSpacing: 2 }}>UBUNTU 22.04.3 LTS</span>
-        <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#1a6a1a", cursor: "pointer", fontSize: 14, padding: "0 4px" }}>×</button>
-      </div>
+      {!noHeader && (
+        <div style={{ background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "4px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ color: "#1a6a1a", fontSize: 10, letterSpacing: 2 }}>UBUNTU 22.04.3 LTS</span>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#1a6a1a", cursor: "pointer", fontSize: 14, padding: "0 4px" }}>×</button>
+        </div>
+      )}
       <div style={{ padding: "10px 14px", height: 220, overflowY: "auto", fontSize: 12, color: "#39ff14" }}>
         {lines.map((l, i) => (
           <div key={i} style={{ color: i < 3 ? "#1a8a1a" : "#39ff14" }}>
@@ -639,43 +641,118 @@ function KernelPanicAnimation({ onDone }) {
   );
 }
 
+function RestrictedTerminal({ onUnlock }) {
+  const [input, setInput] = useState("");
+  const [lines, setLines] = useState(["ACCESS LOCKED", "this terminal requires authorization.", "", "password: "]);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+  const mono = { fontFamily: "monospace" };
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lines]);
+
+  const handleKey = (e) => {
+    if (e.key !== "Enter") return;
+    const pwd = input;
+    setInput("");
+    if (pwd === "0x4B1D") {
+      setLines(l => [...l.slice(0, -1), "password: ••••••", "", "ACCESS GRANTED — unlocking..."]);
+      setTimeout(() => onUnlock(), 800);
+    } else {
+      setLines(l => [...l.slice(0, -1), "password: ••••••", "ACCESS DENIED — incorrect password", "", "password: "]);
+    }
+  };
+
+  return (
+    <div style={{ background: "#020a02", ...mono }} onClick={() => inputRef.current?.focus()}>
+      <div style={{ padding: "10px 14px", height: 180, overflowY: "auto", fontSize: 12 }}>
+        {lines.map((l, i) => (
+          <div key={i} style={{
+            color: l.startsWith("ACCESS DENIED") ? "#ff4444" : l.startsWith("ACCESS GRANTED") ? "#39ff14" : l === "ACCESS LOCKED" ? "#1a4a1a" : "#1a8a1a"
+          }}>
+            {i === lines.length - 1 && l === "password: " ? (
+              <span>
+                <span style={{ color: "#1a8a1a" }}>{l}</span>
+                <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} autoFocus
+                  style={{ background: "transparent", border: "none", outline: "none", color: "#39ff14", fontSize: 12, fontFamily: "monospace", width: "50%", WebkitTextSecurity: "disc", caretColor: "#39ff14" }} />
+              </span>
+            ) : l}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
+}
+
+
+const TOOLS = [["OrdinalsBot","ordinalsbot.com"],["UniSat","unisat.io/inscribe"],["Gamma","gamma.io/inscribe"],["OrdDropz","ord-dropz.xyz"],["ord CLI","docs.ordinals.com"]];
+function ToolChooser() {
+  const [clicks, setClicks] = useState({});
+  useEffect(() => {
+    fetch(`${API_BASE}/tool-clicks`).then(r => r.json()).then(setClicks).catch(() => {});
+  }, []);
+  const total = Object.values(clicks).reduce((a, b) => a + b, 0);
+  const handleClick = (name) => {
+    setClicks(prev => ({ ...prev, [name]: (prev[name] || 0) + 1 }));
+    fetch(`${API_BASE}/tool-clicks/${encodeURIComponent(name)}`, { method: "POST" }).catch(() => {});
+  };
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ color: "#39ff14", fontSize: 12, marginBottom: 8, letterSpacing: 1 }}>STEP 2 — CHOOSE YOUR TOOL</div>
+      {TOOLS.map(([name, url]) => {
+        const count = clicks[name] || 0;
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        return (
+          <div key={name} style={{ marginBottom: 6, paddingLeft: 8, borderLeft: "1px solid #1a4a1a", display: "flex", alignItems: "center", gap: 8 }}>
+            <a href={`https://${url}`} target="_blank" rel="noopener noreferrer" onClick={() => handleClick(name)} style={{ color: "#7fff7f", textDecoration: "none", fontSize: 11 }}>{name}</a>
+            {count > 0 && <span style={{ color: "#1a4a1a", fontSize: 9 }}>{count} click{count !== 1 ? "s" : ""} · {pct}%</span>}
+          </div>
+        );
+      })}
+      {total > 0 && <div style={{ color: "#1a4a1a", fontSize: 9, marginTop: 8 }}>{total} total clicks</div>}
+    </div>
+  );
+}
 
 function MarketplacePoll() {
-  const [votes,setVotes] = useState(()=>{const i={};MARKETPLACES.filter(m=>m.status==="active").forEach(m=>{i[m.id]=0;});return i;});
+  const [votes,setVotes] = useState({});
   const [userVote,setUserVote] = useState(null);
   const [loaded,setLoaded] = useState(false);
   useEffect(()=>{
-    try{
-      const sv=localStorage.getItem("tg_poll_votes");
-      const uv=localStorage.getItem(POLL_KEY);
-      if(sv)setVotes(JSON.parse(sv));
-      if(uv)setUserVote(uv);
-    }catch{}
+    fetch(`${API_BASE}/poll`).then(r=>r.json()).then(setVotes).catch(()=>{});
+    try{const uv=localStorage.getItem(POLL_KEY);if(uv)setUserVote(uv);}catch{}
     setLoaded(true);
   },[]);
   const vote=(id)=>{
     if(userVote)return;
-    const nv={...votes,[id]:(votes[id]||0)+1};
-    setVotes(nv);setUserVote(id);
-    try{localStorage.setItem("tg_poll_votes",JSON.stringify(nv));localStorage.setItem(POLL_KEY,id);}catch{}
+    setUserVote(id);
+    try{localStorage.setItem(POLL_KEY,id);}catch{}
+    fetch(`${API_BASE}/poll/${encodeURIComponent(id)}`,{method:"POST"}).then(r=>r.json()).then(setVotes).catch(()=>{});
   };
   const total=Object.values(votes).reduce((a,b)=>a+b,0);
   const maxVotes=Math.max(...Object.values(votes),1);
   const mono={fontFamily:"monospace"};
 
-  // Comments
   const [comments,setComments] = useState([]);
   const [commentText,setCommentText] = useState("");
   const [commentName,setCommentName] = useState("");
-  useEffect(()=>{try{const c=localStorage.getItem("tg_comments");if(c)setComments(JSON.parse(c));}catch{}},[]);
+  const [likedComments,setLikedComments] = useState(()=>{try{return JSON.parse(localStorage.getItem("tg_comment_reactions")||"{}");} catch{return{};}});
+  useEffect(()=>{fetch(`${API_BASE}/comments`).then(r=>r.json()).then(setComments).catch(()=>{});},[]);
   const addComment=()=>{
     if(!commentText.trim())return;
-    const nc=[...comments,{name:commentName.trim()||"anon",text:commentText.trim(),ts:Date.now()}];
-    setComments(nc);setCommentText("");
-    try{localStorage.setItem("tg_comments",JSON.stringify(nc));}catch{}
+    fetch(`${API_BASE}/comments`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:commentName.trim()||null,text:commentText.trim()})})
+      .then(r=>r.json()).then(c=>{setComments(prev=>[c,...prev]);setCommentText("");}).catch(()=>{});
+  };
+  const reactComment=(id,type)=>{
+    if(likedComments[`${id}_${type}`])return;
+    fetch(`${API_BASE}/comments/${id}/${type}`,{method:"POST"}).then(r=>r.json()).then(updated=>{
+      setComments(prev=>prev.map(c=>c.id===updated.id?updated:c));
+      const nr={...likedComments,[`${id}_${type}`]:true};
+      setLikedComments(nr);
+      try{localStorage.setItem("tg_comment_reactions",JSON.stringify(nr));}catch{}
+    }).catch(()=>{});
   };
 
-  // Tool submissions
   const [submitName,setSubmitName] = useState("");
   const [submitUrl,setSubmitUrl] = useState("");
   const [submitDesc,setSubmitDesc] = useState("");
@@ -683,13 +760,8 @@ function MarketplacePoll() {
   const [submitted,setSubmitted] = useState(false);
   const submitTool=()=>{
     if(!submitName.trim()||!submitUrl.trim())return;
-    try{
-      const existing=JSON.parse(localStorage.getItem("tg_submissions")||"[]");
-      existing.push({name:submitName.trim(),url:submitUrl.trim(),desc:submitDesc.trim(),type:submitType,ts:Date.now()});
-      localStorage.setItem("tg_submissions",JSON.stringify(existing));
-    }catch{}
-    setSubmitName("");setSubmitUrl("");setSubmitDesc("");setSubmitType("marketplace");setSubmitted(true);
-    setTimeout(()=>setSubmitted(false),3000);
+    fetch(`${API_BASE}/submissions`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:submitName.trim(),url:submitUrl.trim(),desc:submitDesc.trim(),type:submitType})})
+      .then(()=>{setSubmitName("");setSubmitUrl("");setSubmitDesc("");setSubmitType("marketplace");setSubmitted(true);setTimeout(()=>setSubmitted(false),3000);}).catch(()=>{});
   };
 
   const inputStyle={...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color:"#7fff7f",padding:"7px 10px",fontSize:11,width:"100%",outline:"none"};
@@ -724,7 +796,7 @@ function MarketplacePoll() {
           );
         })}
       </div>
-      {userVote&&<button onClick={()=>{setUserVote(null);try{localStorage.removeItem(POLL_KEY);}catch{}}} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a4a1a",padding:"6px 12px",cursor:"pointer",fontSize:10,marginTop:12,letterSpacing:1}}>↺ CHANGE VOTE</button>}
+      {userVote&&<button onClick={()=>{setUserVote(null);try{localStorage.removeItem(POLL_KEY);}catch{};fetch(`${API_BASE}/poll`).then(r=>r.json()).then(setVotes).catch(()=>{})}} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a4a1a",padding:"6px 12px",cursor:"pointer",fontSize:10,marginTop:12,letterSpacing:1}}>↺ CHANGE VOTE</button>}
 
       {/* Comments */}
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
@@ -738,6 +810,10 @@ function MarketplacePoll() {
                 <span style={{color:"#1a4a1a",fontSize:9,...mono}}>{new Date(c.ts).toLocaleDateString()} {new Date(c.ts).toLocaleTimeString()}</span>
               </div>
               <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.6,...mono}}>{c.text}</div>
+              <div style={{display:"flex",gap:12,marginTop:6}}>
+                <button onClick={()=>reactComment(c.id,"like")} disabled={likedComments[`${c.id}_like`]} style={{...mono,background:"transparent",border:"none",color:likedComments[`${c.id}_like`]?"#39ff14":"#1a4a1a",cursor:likedComments[`${c.id}_like`]?"default":"pointer",fontSize:10,padding:0}}>♥ {c.likes||0}</button>
+                <button onClick={()=>reactComment(c.id,"dislike")} disabled={likedComments[`${c.id}_dislike`]} style={{...mono,background:"transparent",border:"none",color:likedComments[`${c.id}_dislike`]?"#ff4444":"#1a4a1a",cursor:likedComments[`${c.id}_dislike`]?"default":"pointer",fontSize:10,padding:0}}>▼ {c.dislikes||0}</button>
+              </div>
             </div>
           ))}
         </div>
@@ -921,19 +997,19 @@ export default function TulipGarden() {
         <pre style={{fontSize:5,lineHeight:1.1,color:"#39ff14",textShadow:"0 0 12px rgba(57,255,20,0.4)",whiteSpace:"pre",overflow:"hidden",marginBottom:16}}>{HEADER_ART}</pre>
         <div style={{display:"flex",gap:24,alignItems:"center",flexWrap:"wrap"}}>
           <div style={{fontSize:11,color:"#1a8a1a",letterSpacing:1}}>
-            A COLLABORATIVE ASCII GARDEN ON BITCOIN · ROOTED AT <span style={{color:"#39ff14"}}>@</span> · ROGUE (1980)
-          </div>
-          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:12}}>
-            <span style={{fontSize:11,color:"#1a6a1a"}}>{loading?"SYNCING...":`${tulips.length} BLOOM${tulips.length!==1?"S":""}`}</span>
-            <button onClick={fetchTulips} style={{background:"transparent",border:"1px solid #39ff14",color:"#39ff14",padding:"8px 16px",cursor:"pointer",fontFamily:"monospace",fontSize:11,letterSpacing:2}}>↺ REFRESH</button>
+            A COLLABORATIVE ASCII GARDEN ON BITCOIN · ROOTED AT <span style={{color:"#39ff14"}}>@</span> · INSPIRED BY <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>GAME.TULIP.FARM</a> & ROGUE (1980)
           </div>
         </div>
       </div>
 
       {/* Status bar */}
-      <div style={{display:"flex",justifyContent:"space-between",padding:"8px 24px",background:"#00060a",borderBottom:"1px solid #0d3d0d",fontSize:11,color:"#1a6a1a",letterSpacing:1,flexWrap:"wrap",gap:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 24px",background:"#00060a",borderBottom:"1px solid #0d3d0d",fontSize:11,color:"#1a6a1a",letterSpacing:1,flexWrap:"wrap",gap:8}}>
         <span>ORD://TULIP.GARDEN · PARENT: {PARENT_ID.slice(0,12)}...{PARENT_ID.slice(-8)}</span>
         <span>{lastRefresh?`LAST SYNC: ${lastRefresh.toLocaleTimeString()}`:"SYNCING..."} · AUTO-REFRESH: 30s</span>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:11,color:"#1a6a1a"}}>{loading?"SYNCING...":`${tulips.length} TULIP${tulips.length!==1?"S":""}`}</span>
+          <button onClick={fetchTulips} style={{background:"transparent",border:"1px solid #39ff14",color:"#39ff14",padding:"8px 16px",cursor:"pointer",fontFamily:"monospace",fontSize:11,letterSpacing:2}}>↺ REFRESH</button>
+        </div>
       </div>
 
       {/* Nav */}
@@ -998,7 +1074,10 @@ export default function TulipGarden() {
                     <div style={{marginBottom:32}}>
                       <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHAT IS TULIP GARDEN?</div>
                       <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
-                        Tulip Garden is a collaborative ASCII art collection on Bitcoin Ordinals. Every tulip is permanently inscribed on-chain as a child of the <span style={{color:"#39ff14"}}>@</span> parent inscription. Anyone can plant a tulip — design your ASCII art, choose your color and epitaph, and inscribe it as a child of the root. Your tulip lives on Bitcoin forever.
+                        Tulip Garden is a collaborative ASCII art collection on Bitcoin Ordinals, inspired by Casey Rodarmor{"'"}s <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>game.tulip.farm</a> — an ASCII dungeon crawler built on Ordinals where <span style={{color:"#39ff14"}}>@</span> is the hero, and the entire world is made of text characters. The game takes direct inspiration from <span style={{color:"#39ff14"}}>Rogue</span> (1980), one of the first dungeon-crawling games ever made, where everything — the player, enemies, walls, treasure — was rendered as ASCII on a terminal screen. Tulip Garden carries that spirit onto Bitcoin.<br/><br/>
+                        Every tulip is permanently inscribed on-chain as a child of the <span style={{color:"#39ff14"}}>@</span> parent inscription. Anyone can plant a tulip — design your ASCII art, choose your color and epitaph, and inscribe it as a child of the root. Your tulip lives on Bitcoin forever.<br/><br/>
+                        The garden is dynamic — as new tulips are inscribed under the parent, they appear here automatically. The site pulls children of <span style={{color:"#39ff14"}}>@</span> directly from the chain and renders them in real time.<br/><br/>
+                        One of the goals of Tulip Garden is to teach how parent-child provenance works in practice — not just explain it, but give you the tools to do it yourself. The site also aggregates community thoughts on the evolving landscape of Ordinals marketplaces and tools, helping builders and collectors find what they need in one place.
                       </div>
                     </div>
 
@@ -1025,9 +1104,10 @@ export default function TulipGarden() {
                     <div style={{marginBottom:32}}>
                       <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHY PARENT-CHILD SHOULD BE THE STANDARD</div>
                       <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
-                        Permanent provenance on-chain beats any off-chain database. A parent-child link is inscribed in Bitcoin — it cannot be faked, cannot be deleted, cannot be changed. No server to shut down, no API to deprecate, no company to go bankrupt.<br/><br/>
-                        Every collection on Ordinals should use parent-child provenance. It is the only standard that is truly trustless, truly permanent, and truly verifiable by anyone running a node.<br/><br/>
-                        If it{"'"}s not on-chain, it{"'"}s not real.
+                        Permanent provenance on-chain beats any off-chain database. A parent-child link is inscribed in Bitcoin — it cannot be faked, cannot be deleted, cannot be changed. No server to shut down, no API to deprecate.<br/><br/>
+                        When Tragic Eden sunset its Bitcoin marketplace, collections that relied on its off-chain database to define membership were left stranded. No parent-child link meant no on-chain proof that an inscription belonged to a collection. The metadata lived on their servers — and when those servers stopped caring, so did the provenance.<br/><br/>
+                        Parent-child provenance removes that dependency. No platform can delist what the chain itself proves. The provenance lives where it should — on-chain, not on someone{"'"}s server.<br/><br/>
+                        Every collection on Ordinals should use parent-child provenance.
                       </div>
                     </div>
                   </div>
@@ -1048,16 +1128,9 @@ export default function TulipGarden() {
                   <div style={{color:"#39ff14",fontSize:12,marginBottom:8,letterSpacing:1}}>STEP 1 — CREATE YOUR FILES</div>
                   <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2}}>Design your tulip using <span style={{color:"#1a8a1a"}}>THE MACHINE</span> above, or create your files manually using any plain text editor (Notepad, VS Code, TextEdit in plain text mode). Save as <span style={{color:"#1a8a1a"}}>tulipN.txt</span> and <span style={{color:"#1a8a1a"}}>tulipN.json</span>.</div>
                 </div>
-                <div style={{marginBottom:24}}>
-                  <div style={{color:"#39ff14",fontSize:12,marginBottom:8,letterSpacing:1}}>STEP 2 — CHOOSE YOUR TOOL</div>
-                  {[["OrdinalsBot","ordinalsbot.com"],["UniSat","unisat.io/inscribe"],["Gamma","gamma.io/inscribe"],["OrdDropz","ord-dropz.xyz"],["ord CLI","docs.ordinals.com"]].map(([name,url])=>(
-                    <div key={name} style={{marginBottom:6,paddingLeft:8,borderLeft:"1px solid #1a4a1a"}}>
-                      <a href={`https://${url}`} target="_blank" rel="noopener noreferrer" style={{color:"#7fff7f",textDecoration:"none",fontSize:11}}>{name}</a>
-                    </div>
-                  ))}
-                </div>
+                <ToolChooser />
                 <div>
-                  <div style={{color:"#39ff14",fontSize:12,marginBottom:8,letterSpacing:1}}>STEP 3 — PASTE PARENT ID</div>
+                  <div style={{color:"#39ff14",fontSize:12,marginBottom:8,letterSpacing:1}}>PARENT ID</div>
                   <div style={{background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",padding:"8px 12px",fontSize:10,color:"#7fff7f",wordBreak:"break-all",fontFamily:"monospace"}}>{PARENT_ID}</div>
                 </div>
               </div>
@@ -1067,14 +1140,13 @@ export default function TulipGarden() {
                   <div style={{color:"#1a8a1a",fontSize:11,lineHeight:2.4}}>
                     ① ASCII .txt files only<br/>
                     ② Spaces not tabs<br/>
-                    ③ bc1p Taproot address<br/>
-                    ④ collection: <span style={{color:"#39ff14"}}>"Tulip Garden"</span><br/>
-                    ⑤ color + epitaph optional but permanent
+                    ③ collection: <span style={{color:"#39ff14"}}>"Tulip Garden"</span><br/>
+                    ④ color + epitaph optional but permanent
                   </div>
                 </div>
                 <div style={{marginBottom:24}}>
                   <div style={{color:"#39ff14",fontSize:12,marginBottom:8,letterSpacing:1}}>LINEAGE</div>
-                  <pre style={codeBlock}>{`@ (parent)\n└── tulip #0 (madison)\n└── tulip #1 (you?)\n\nInspired by game.tulip.farm\nand Rogue (1980)\n\n"Goodbye, rogue..."`}</pre>
+                  <pre style={codeBlock}>{`@ (parent)\n└── tulip #0 (madison)\n└── tulip #1 (you?)`}</pre>
                 </div>
               </div>
             </div>
@@ -1098,7 +1170,7 @@ export default function TulipGarden() {
 
       <div style={{borderTop:"1px solid #0d3d0d",padding:"16px 24px",display:"flex",justifyContent:"space-between",fontSize:10,color:"#0d3d0d",letterSpacing:1,flexWrap:"wrap",gap:8}}>
         <span>TULIP GARDEN · BITCOIN ORDINALS · PARENT: {PARENT_ID}</span>
-        <span>ROOTED AT @ · ROGUE (1980)</span>
+        <span>ROOTED AT @ · INSPIRED BY <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#0d3d0d",textDecoration:"none"}}>GAME.TULIP.FARM</a> & ROGUE (1980)</span>
       </div>
     </div>
   );
