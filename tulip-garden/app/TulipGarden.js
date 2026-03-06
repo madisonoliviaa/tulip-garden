@@ -17,12 +17,11 @@ const MINI_TULIP = `   _\n  (v)\n   |\n  \\|/`;
 const DEFAULT_TULIP = `   _\n  (v)\n   |\n  \\|/`;
 
 const MARKETPLACES = [
-  { id: "ordinalsbot", name: "OrdinalsBot", url: "https://ordinalsbot.com", inscribeUrl: "https://token.ordinalsbot.com/products/inscriptions", parentChild: true, difficulty: "EASY", notes: "Best UI for parent-child. Upload file + metadata separately, P/C field built in.", status: "active" },
-  { id: "unisat", name: "UniSat", url: "https://unisat.io", inscribeUrl: "https://unisat.io/inscribe", parentChild: true, difficulty: "EASY", notes: "Popular wallet + inscriber. Supports P/C.", status: "active" },
-  { id: "gamma", name: "Gamma.io", url: "https://gamma.io", inscribeUrl: "https://gamma.io/inscribe", parentChild: true, difficulty: "EASY", notes: "Clean UI, launchpad-style. Good for collections.", status: "active" },
-  { id: "orddropz", name: "OrdDropz", url: "https://ord-dropz.xyz", inscribeUrl: "https://ord-dropz.xyz", parentChild: true, difficulty: "MEDIUM", notes: "Launchpad-focused. Good for collections with provenance handled at mint.", status: "active" },
-  { id: "magiceden", name: "Magic Eden", url: "https://magiceden.io", inscribeUrl: null, parentChild: false, difficulty: "N/A", notes: "Sunsetting Ordinals support. Use other tools.", status: "sunset" },
-  { id: "ord", name: "ord CLI", url: "https://github.com/ordinals/ord", inscribeUrl: "https://docs.ordinals.com", parentChild: true, difficulty: "ADVANCED", notes: "Official tool by Casey Rodarmor. Requires running your own Bitcoin node.", status: "active" },
+  { id: "ordinalsbot", name: "OrdinalsBot", url: "https://ordinalsbot.com" },
+  { id: "unisat", name: "UniSat", url: "https://unisat.io/inscribe" },
+  { id: "gamma", name: "Gamma.io", url: "https://gamma.io/inscribe" },
+  { id: "orddropz", name: "OrdDropz", url: "https://ord-dropz.xyz" },
+  { id: "ord", name: "ord CLI", url: "https://github.com/ordinals/ord" },
 ];
 
 const POLL_KEY = "tulip_garden_poll_vote";
@@ -57,21 +56,25 @@ function Cursor() {
 function TulipCard({ id, index, content, artist, tulipNum, color, epitaph }) {
   const [visible,setVisible] = useState(false);
   useEffect(()=>{ const t=setTimeout(()=>setVisible(true),index*120); return ()=>clearTimeout(t); },[index]);
-  const c = color || DEFAULT_COLOR;
+  const isEasterEgg = artist === "rodney" && color === "#efface" && epitaph === "my name is yendor";
+  const derivedColor = id ? `#${id.slice(0,6)}` : DEFAULT_COLOR;
+  const c = isEasterEgg ? "#FFD700" : (color || derivedColor);
   const rgb = hexToRgb(c);
   const shortId = id ? `${id.slice(0,8)}...${id.slice(-4)}` : "???";
   return (
-    <div style={{ border:`1px solid ${c}40`, padding:"16px", fontFamily:"monospace", transition:"all 0.6s ease", opacity:visible?1:0, transform:visible?"translateY(0)":"translateY(20px)", background:`rgba(${rgb},0.04)`, position:"relative" }}>
-      <span style={{position:"absolute",top:4,left:4,color:`${c}80`,fontSize:10}}>┌</span>
-      <span style={{position:"absolute",top:4,right:4,color:`${c}80`,fontSize:10}}>┐</span>
-      <span style={{position:"absolute",bottom:4,left:4,color:`${c}80`,fontSize:10}}>└</span>
-      <span style={{position:"absolute",bottom:4,right:4,color:`${c}80`,fontSize:10}}>┘</span>
-      <div style={{color:`${c}80`,fontSize:10,marginBottom:8,letterSpacing:2}}>TULIP #{String(index).padStart(3,"0")}</div>
-      <pre style={{color:c,fontSize:14,lineHeight:1.2,margin:"0 0 12px 0",textShadow:`0 0 8px rgba(${rgb},0.6)`,minHeight:60}}>{content||MINI_TULIP}</pre>
-      <div style={{color:`${c}30`,fontSize:10,marginBottom:8}}>{"⸜".repeat(12)}</div>
-      {artist && <div style={{color:c,fontSize:11,opacity:0.7,marginBottom:4}}>ARTIST: <span style={{opacity:1}}>{artist}</span></div>}
-      {epitaph && <div style={{color:`${c}90`,fontSize:10,fontStyle:"italic",marginBottom:8}}>"{epitaph}"</div>}
-      <a href={`${ORDINALS_BASE}/inscription/${id}`} target="_blank" rel="noopener noreferrer" style={{color:`${c}50`,fontSize:9,textDecoration:"none",wordBreak:"break-all",display:"block"}}>{shortId}</a>
+    <div style={{ border:"1px solid #1a3a1a", padding:"16px", fontFamily:"monospace", transition:"all 0.6s ease", opacity:visible?1:0, transform:visible?"translateY(0)":"translateY(20px)", background:"transparent", position:"relative", overflow:"visible", ...(isEasterEgg ? {boxShadow:`0 0 20px rgba(${rgb},0.3)`,border:`1px solid ${c}40`} : {}) }}>
+      <span style={{position:"absolute",top:4,left:4,color:"#1a4a1a",fontSize:10}}>┌</span>
+      <span style={{position:"absolute",top:4,right:4,color:"#1a4a1a",fontSize:10}}>┐</span>
+      <span style={{position:"absolute",bottom:4,left:4,color:"#1a4a1a",fontSize:10}}>└</span>
+      <span style={{position:"absolute",bottom:4,right:4,color:"#1a4a1a",fontSize:10}}>┘</span>
+      {isEasterEgg && <div style={{color:"#FFD700",fontSize:18,textAlign:"center",marginBottom:4,textShadow:"0 0 12px rgba(255,215,0,0.6)"}}>♛</div>}
+      <div style={{color:"#1a6a1a",fontSize:10,marginBottom:8,letterSpacing:2}}>TULIP #{String(index).padStart(3,"0")}</div>
+      <pre style={{color:c,fontSize:14,lineHeight:1.6,margin:"0 0 12px 0",paddingTop:4,textAlign:"left",whiteSpace:"pre",textShadow:`0 0 8px rgba(${rgb},0.6)`,minHeight:60,overflow:"auto"}}>{content||MINI_TULIP}</pre>
+      <div style={{color:"#0d3d0d",fontSize:10,marginBottom:8}}>{"⸜".repeat(12)}</div>
+      {artist && <div style={{color:"#1a6a1a",fontSize:11,marginBottom:4}}>ARTIST: <span style={{color:"#2a8a2a"}}>{artist}</span></div>}
+      {epitaph && <div style={{color:"#1a5a1a",fontSize:10,fontStyle:"italic",marginBottom:8}}>"{epitaph}"</div>}
+      {isEasterEgg && <div style={{color:"#FFD700",fontSize:10,letterSpacing:2,marginBottom:8,textShadow:"0 0 8px rgba(255,215,0,0.4)"}}>✦ FOUNDER OF YENDOR ✦</div>}
+      <a href={`${ORDINALS_BASE}/inscription/${id}`} target="_blank" rel="noopener noreferrer" style={{color:"#1a4a1a",fontSize:9,textDecoration:"none",wordBreak:"break-all",display:"block"}}>{shortId}</a>
     </div>
   );
 }
@@ -82,7 +85,7 @@ function GrowingField({ tulips }) {
       <style>{`@keyframes grow{from{opacity:0;transform:scaleY(0.2) translateY(20px);transform-origin:bottom}to{opacity:1;transform:scaleY(1) translateY(0);transform-origin:bottom}}`}</style>
       <div style={{display:"flex",alignItems:"flex-end",gap:6,minWidth:"max-content",padding:"0 20px"}}>
         {tulips.map((t,i)=>{
-          const c = t.color||DEFAULT_COLOR;
+          const c = t.color||(t.id?`#${t.id.slice(0,6)}`:DEFAULT_COLOR);
           const rgb = hexToRgb(c);
           return (
             <div key={t.id||i} style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
@@ -126,7 +129,7 @@ function TimelineMode({ tulips }) {
   );
 
   const t = tulips[current];
-  const c = t.color || DEFAULT_COLOR;
+  const c = t.color || (t.id ? `#${t.id.slice(0,6)}` : DEFAULT_COLOR);
   const rgb = hexToRgb(c);
   const opacity = phase === "hold" ? 1 : 0;
   const translateY = phase === "hold" ? 0 : phase === "in" ? 30 : -30;
@@ -171,7 +174,7 @@ function TimelineMode({ tulips }) {
       {/* Progress dots */}
       <div style={{position:"absolute",bottom:20,display:"flex",gap:8}}>
         {tulips.map((_,i)=>(
-          <div key={i} onClick={()=>{clearTimeout(timerRef.current);setCurrent(i);}} style={{width:i===current?20:6,height:6,background:i===current?(tulips[i].color||DEFAULT_COLOR):"#1a4a1a",borderRadius:3,cursor:"pointer",transition:"all 0.4s ease"}} />
+          <div key={i} onClick={()=>{clearTimeout(timerRef.current);setCurrent(i);}} style={{width:i===current?20:6,height:6,background:i===current?(tulips[i].color||(tulips[i].id?`#${tulips[i].id.slice(0,6)}`:DEFAULT_COLOR)):"#1a4a1a",borderRadius:3,cursor:"pointer",transition:"all 0.4s ease"}} />
         ))}
       </div>
 
@@ -201,9 +204,6 @@ function TheMachine({ nextTulipNum }) {
   const menuRef = useRef(null);
   const isMobile = useIsMobile();
   const cols = isMobile ? "1fr" : "1fr 1fr";
-
-  // Easter egg hidden comment: <!-- 0xFEE1DEAD -->
-  // Easter egg hidden comment: <!-- printf "%x\n" -->
 
   const jsonContent = JSON.stringify({
     collection: "Tulip Garden",
@@ -660,18 +660,50 @@ function MarketplacePoll() {
     try{localStorage.setItem("tg_poll_votes",JSON.stringify(nv));localStorage.setItem(POLL_KEY,id);}catch{}
   };
   const total=Object.values(votes).reduce((a,b)=>a+b,0);
-  const activeMarkets=MARKETPLACES.filter(m=>m.status==="active");
   const maxVotes=Math.max(...Object.values(votes),1);
   const mono={fontFamily:"monospace"};
+
+  // Comments
+  const [comments,setComments] = useState([]);
+  const [commentText,setCommentText] = useState("");
+  const [commentName,setCommentName] = useState("");
+  useEffect(()=>{try{const c=localStorage.getItem("tg_comments");if(c)setComments(JSON.parse(c));}catch{}},[]);
+  const addComment=()=>{
+    if(!commentText.trim())return;
+    const nc=[...comments,{name:commentName.trim()||"anon",text:commentText.trim(),ts:Date.now()}];
+    setComments(nc);setCommentText("");
+    try{localStorage.setItem("tg_comments",JSON.stringify(nc));}catch{}
+  };
+
+  // Tool submissions
+  const [submitName,setSubmitName] = useState("");
+  const [submitUrl,setSubmitUrl] = useState("");
+  const [submitDesc,setSubmitDesc] = useState("");
+  const [submitType,setSubmitType] = useState("marketplace");
+  const [submitted,setSubmitted] = useState(false);
+  const submitTool=()=>{
+    if(!submitName.trim()||!submitUrl.trim())return;
+    try{
+      const existing=JSON.parse(localStorage.getItem("tg_submissions")||"[]");
+      existing.push({name:submitName.trim(),url:submitUrl.trim(),desc:submitDesc.trim(),type:submitType,ts:Date.now()});
+      localStorage.setItem("tg_submissions",JSON.stringify(existing));
+    }catch{}
+    setSubmitName("");setSubmitUrl("");setSubmitDesc("");setSubmitType("marketplace");setSubmitted(true);
+    setTimeout(()=>setSubmitted(false),3000);
+  };
+
+  const inputStyle={...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color:"#7fff7f",padding:"7px 10px",fontSize:11,width:"100%",outline:"none"};
+
   return (
     <div style={{marginBottom:32}}>
-      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:8}}>⬡ COMMUNITY POLL — WHICH TOOL DO YOU PREFER?</div>
+      {/* Poll */}
+      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:8}}>⬡ POLL — WHICH TOOL DO YOU PREFER?</div>
       <div style={{color:"#1a6a1a",fontSize:11,marginBottom:20,lineHeight:1.8}}>
         {total>0?`${total} vote${total!==1?"s":""} cast.`:"Be the first to vote."}
         {userVote&&<span style={{color:"#7fff7f"}}> You voted for {MARKETPLACES.find(m=>m.id===userVote)?.name}.</span>}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {activeMarkets.map(m=>{
+        {MARKETPLACES.map(m=>{
           const count=votes[m.id]||0;
           const pct=total>0?Math.round((count/total)*100):0;
           const barWidth=total>0?(count/maxVotes)*100:0;
@@ -685,44 +717,76 @@ function MarketplacePoll() {
                 <span style={{color:voted?"#39ff14":"#7fff7f",fontSize:12,...mono}}>{m.name}</span>
                 <span style={{color:"#1a6a1a",fontSize:11,marginLeft:"auto",...mono}}>{count} · {pct}%</span>
               </div>
-              <div style={{height:3,background:"#0d3d0d",marginBottom:6}}>
+              <div style={{height:3,background:"#0d3d0d"}}>
                 <div style={{height:"100%",width:`${barWidth}%`,background:voted?"#39ff14":"#1a8a1a",transition:"width 0.5s ease"}} />
               </div>
-              <div style={{color:"#1a4a1a",fontSize:10,...mono}}>{m.notes}</div>
             </div>
           );
         })}
       </div>
       {userVote&&<button onClick={()=>{setUserVote(null);try{localStorage.removeItem(POLL_KEY);}catch{}}} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a4a1a",padding:"6px 12px",cursor:"pointer",fontSize:10,marginTop:12,letterSpacing:1}}>↺ CHANGE VOTE</button>}
+
+      {/* Comments */}
+      <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
+        <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ COMMENTS</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+          {comments.length===0&&<div style={{color:"#1a4a1a",fontSize:11,...mono}}>No comments yet. Be the first.</div>}
+          {comments.map((c,i)=>(
+            <div key={i} style={{border:"1px solid #1a4a1a",padding:"10px 12px",background:"rgba(57,255,20,0.02)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                <span style={{color:"#7fff7f",fontSize:11,...mono}}>{c.name}</span>
+                <span style={{color:"#1a4a1a",fontSize:9,...mono}}>{new Date(c.ts).toLocaleDateString()} {new Date(c.ts).toLocaleTimeString()}</span>
+              </div>
+              <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.6,...mono}}>{c.text}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:8}}>
+          <input value={commentName} onChange={e=>setCommentName(e.target.value)} placeholder="name (optional)" style={{...inputStyle,width:"30%"}} />
+          <input value={commentText} onChange={e=>setCommentText(e.target.value)} placeholder="leave a comment..." style={inputStyle} onKeyDown={e=>{if(e.key==="Enter")addComment();}} />
+          <button onClick={addComment} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"7px 14px",cursor:"pointer",fontSize:10,letterSpacing:1,flexShrink:0}}>POST</button>
+        </div>
+      </div>
+
+      {/* Submit a tool */}
+      <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
+        <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:8}}>⬡ SUBMIT A TOOL OR MARKETPLACE</div>
+        <div style={{color:"#1a4a1a",fontSize:10,marginBottom:16,...mono}}>Submissions reviewed before being added to the directory.</div>
+        {submitted?(
+          <div style={{color:"#39ff14",fontSize:12,padding:20,border:"1px solid #1a4a1a",textAlign:"center",...mono}}>✓ Thank you! Your submission has been recorded.</div>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <input value={submitName} onChange={e=>setSubmitName(e.target.value)} placeholder="tool/marketplace name *" style={inputStyle} />
+            <input value={submitUrl} onChange={e=>setSubmitUrl(e.target.value)} placeholder="url *" style={inputStyle} />
+            <input value={submitDesc} onChange={e=>setSubmitDesc(e.target.value)} placeholder="short description" style={inputStyle} />
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{color:"#1a6a1a",fontSize:10,...mono}}>TYPE:</span>
+              {["marketplace","tool","other"].map(t=>(
+                <button key={t} onClick={()=>setSubmitType(t)} style={{...mono,background:submitType===t?"rgba(57,255,20,0.1)":"transparent",border:`1px solid ${submitType===t?"#39ff14":"#1a4a1a"}`,color:submitType===t?"#39ff14":"#1a6a1a",padding:"4px 10px",cursor:"pointer",fontSize:10,letterSpacing:1}}>{t.toUpperCase()}</button>
+              ))}
+            </div>
+            <button onClick={submitTool} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"8px 14px",cursor:"pointer",fontSize:10,letterSpacing:1,alignSelf:"flex-start",marginTop:4}}>SUBMIT</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function MarketplaceDirectory() {
   const mono={fontFamily:"monospace"};
-  const diffColor={EASY:"#39ff14",MEDIUM:"#7fff7f",ADVANCED:"#ffaa00","N/A":"#1a4a1a"};
+  const marketplaces=MARKETPLACES.filter(m=>m.id!=="ord");
   return (
     <div>
-      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ INSCRIPTION TOOLS DIRECTORY</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
-        {MARKETPLACES.map(m=>(
-          <div key={m.id} style={{border:`1px solid ${m.status==="sunset"?"#2a1a1a":"#1a4a1a"}`,padding:14,background:m.status==="sunset"?"rgba(40,0,0,0.3)":"rgba(57,255,20,0.02)",opacity:m.status==="sunset"?0.6:1}}>
-            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:6}}>
-              <div style={{color:m.status==="sunset"?"#6a2a2a":"#7fff7f",fontSize:12,...mono}}>{m.name}</div>
-              <div style={{display:"flex",gap:6}}>
-                {m.status==="sunset"&&<span style={{color:"#6a2a2a",fontSize:9,border:"1px solid #4a1a1a",padding:"2px 6px",...mono}}>SUNSET</span>}
-                {m.parentChild&&m.status!=="sunset"&&<span style={{color:"#39ff14",fontSize:9,border:"1px solid #1a4a1a",padding:"2px 6px",...mono}}>P/C ✓</span>}
-                {m.difficulty!=="N/A"&&<span style={{color:diffColor[m.difficulty],fontSize:9,border:`1px solid ${diffColor[m.difficulty]}40`,padding:"2px 6px",...mono}}>{m.difficulty}</span>}
-              </div>
-            </div>
-            <div style={{color:"#1a6a1a",fontSize:10,lineHeight:1.7,marginBottom:10,...mono}}>{m.notes}</div>
-            <div style={{display:"flex",gap:8}}>
-              <a href={m.url} target="_blank" rel="noopener noreferrer" style={{color:"#1a6a1a",fontSize:10,textDecoration:"none",border:"1px solid #1a3a1a",padding:"4px 8px",...mono}}>→ SITE</a>
-              {m.inscribeUrl&&m.status!=="sunset"&&<a href={m.inscribeUrl} target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",fontSize:10,textDecoration:"none",border:"1px solid #1a4a1a",padding:"4px 8px",...mono}}>→ INSCRIBE</a>}
-            </div>
-          </div>
+      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ MARKETPLACES</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {marketplaces.map(m=>(
+          <a key={m.id} href={m.url} target="_blank" rel="noopener noreferrer" style={{color:"#7fff7f",fontSize:12,textDecoration:"none",border:"1px solid #1a4a1a",padding:"10px 14px",background:"rgba(57,255,20,0.02)",display:"block",...mono}}>
+            → {m.name}
+          </a>
         ))}
       </div>
+      <div style={{color:"#1a4a1a",fontSize:10,marginTop:16,...mono}}>More tools coming soon.</div>
     </div>
   );
 }
@@ -785,11 +849,15 @@ export default function TulipGarden() {
             const text=await cr.text();
             try{
               const j=JSON.parse(text);
-              artist=j.artist;
-              
+              artist=j.artist||null;
               color=j.color||null;
               epitaph=j.epitaph||null;
-            }catch{content=text.trim();}
+              content=j.content||j.art||j.tulip||j.ascii||j.body||j.text||"";
+            }catch{
+              // plain text — preserve exactly as inscribed
+              // strip \r (invisible line-ending artifacts) and trailing spaces per line
+              content=text.replace(/\r/g,"").replace(/[ \t]+$/gm,"").replace(/^\n+|\n+$/g,"");
+            }
           }
           return{id,content,artist,tulipNum,color,epitaph};
         }catch{return{id,content:MINI_TULIP,artist:null,tulipNum:i,color:null,epitaph:null};}
@@ -804,7 +872,7 @@ export default function TulipGarden() {
         }
       }
       const items=await Promise.all(allIds.map(fetchItem));
-      setTulips(items.filter(t=>t.content&&!t.content.startsWith("{")));
+      setTulips(items.filter(t=>t.content&&!t.content.trimStart().startsWith("{")));
       setLastRefresh(new Date());
       setError(null);
     }catch{setError("failed to reach ordinals.com — check connection");}
@@ -845,13 +913,15 @@ export default function TulipGarden() {
         a:hover{opacity:0.8}
       `}</style>
       <ScanlineOverlay />
+      <div dangerouslySetInnerHTML={{__html:"<!-- 0xFEE1DEAD -->"}} />
+      <div dangerouslySetInnerHTML={{__html:'<!-- printf "%x\\n" -->'}} />
 
       {/* Header */}
       <div style={{borderBottom:"1px solid #0d3d0d",padding:"20px 24px 16px",background:"rgba(0,20,0,0.8)"}}>
         <pre style={{fontSize:5,lineHeight:1.1,color:"#39ff14",textShadow:"0 0 12px rgba(57,255,20,0.4)",whiteSpace:"pre",overflow:"hidden",marginBottom:16}}>{HEADER_ART}</pre>
         <div style={{display:"flex",gap:24,alignItems:"center",flexWrap:"wrap"}}>
           <div style={{fontSize:11,color:"#1a8a1a",letterSpacing:1}}>
-            A COLLABORATIVE ASCII GARDEN ON BITCOIN · ROOTED AT <span style={{color:"#39ff14"}}>@</span> · CHILD OF ROGUE (1980)
+            A COLLABORATIVE ASCII GARDEN ON BITCOIN · ROOTED AT <span style={{color:"#39ff14"}}>@</span> · ROGUE (1980)
           </div>
           <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:12}}>
             <span style={{fontSize:11,color:"#1a6a1a"}}>{loading?"SYNCING...":`${tulips.length} BLOOM${tulips.length!==1?"S":""}`}</span>
@@ -881,7 +951,7 @@ export default function TulipGarden() {
           <>
             {/* Garden view switcher */}
             <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
-              {[["grid","⊞ GARDEN"],["grow","⊳ GROWING FIELD"],["timeline","◈ TIMELINE"]].map(([k,label])=>(
+              {[["grid","⊞ GARDEN"],["grow","⊳ GROWING FIELD"],["timeline","◈ TIMELINE"],["about","⧫ ABOUT"]].map(([k,label])=>(
                 <button key={k} style={subBtn(gardenView===k)} onClick={()=>setGardenView(k)}>{label}</button>
               ))}
             </div>
@@ -915,7 +985,7 @@ export default function TulipGarden() {
                       <div>@ (root) → {PARENT_ID.slice(0,16)}...</div>
                       {tulips.map((t,i)=>(
                         <div key={t.id} style={{paddingLeft:16}}>
-                          <span style={{color:t.color||DEFAULT_COLOR}}>└──</span> tulip #{i} {t.artist?`[${t.artist}]`:""} →{" "}
+                          <span style={{color:t.color||(t.id?`#${t.id.slice(0,6)}`:DEFAULT_COLOR)}}>└──</span> tulip #{i} {t.artist?`[${t.artist}]`:""} →{" "}
                           <a href={`https://ordinals.com/inscription/${t.id}`} target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>{t.id.slice(0,12)}...</a>
                         </div>
                       ))}
@@ -923,6 +993,45 @@ export default function TulipGarden() {
                   </>
                 )}
                 {gardenView==="timeline"&&<TimelineMode tulips={tulips} />}
+                {gardenView==="about"&&(
+                  <div style={{maxWidth:700}}>
+                    <div style={{marginBottom:32}}>
+                      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHAT IS TULIP GARDEN?</div>
+                      <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
+                        Tulip Garden is a collaborative ASCII art collection on Bitcoin Ordinals. Every tulip is permanently inscribed on-chain as a child of the <span style={{color:"#39ff14"}}>@</span> parent inscription. Anyone can plant a tulip — design your ASCII art, choose your color and epitaph, and inscribe it as a child of the root. Your tulip lives on Bitcoin forever.
+                      </div>
+                    </div>
+
+                    <div style={{marginBottom:32}}>
+                      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHAT IS PARENT-CHILD PROVENANCE?</div>
+                      <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
+                        Bitcoin Ordinals supports parent-child relationships between inscriptions. A child inscription is permanently linked on-chain to its parent — this relationship is embedded in the Bitcoin transaction itself and cannot be forged, deleted, or altered.<br/><br/>
+                        This proves authenticity: if an inscription is not a child of <span style={{color:"#39ff14"}}>@</span>, it is not a real Tulip Garden tulip. No off-chain database, no API dependency, no trust required. The chain is the proof.<br/><br/>
+                        This should be the standard for all on-chain collections.
+                      </div>
+                    </div>
+
+                    <div style={{marginBottom:32}}>
+                      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHAT IS A GALLERY?</div>
+                      <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
+                        From the Ordinals protocol: a gallery is a collection of inscriptions grouped under a parent. The parent inscription serves as the root and index of the entire collection. All children are provably linked.<br/><br/>
+                        View on ordinals.com:<br/>
+                        <span style={{color:"#1a8a1a"}}>ordinals.com/inscription/{PARENT_ID.slice(0,20)}...</span> — the parent<br/>
+                        <span style={{color:"#1a8a1a"}}>ordinals.com/children/{PARENT_ID.slice(0,20)}...</span> — all children<br/><br/>
+                        Our parent: <a href={`https://ordinals.com/inscription/${PARENT_ID}`} target="_blank" rel="noopener noreferrer" style={{color:"#39ff14",wordBreak:"break-all"}}>{PARENT_ID}</a>
+                      </div>
+                    </div>
+
+                    <div style={{marginBottom:32}}>
+                      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHY PARENT-CHILD SHOULD BE THE STANDARD</div>
+                      <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
+                        Permanent provenance on-chain beats any off-chain database. A parent-child link is inscribed in Bitcoin — it cannot be faked, cannot be deleted, cannot be changed. No server to shut down, no API to deprecate, no company to go bankrupt.<br/><br/>
+                        Every collection on Ordinals should use parent-child provenance. It is the only standard that is truly trustless, truly permanent, and truly verifiable by anyone running a node.<br/><br/>
+                        If it{"'"}s not on-chain, it{"'"}s not real.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </>
@@ -937,7 +1046,7 @@ export default function TulipGarden() {
               <div>
                 <div style={{marginBottom:24}}>
                   <div style={{color:"#39ff14",fontSize:12,marginBottom:8,letterSpacing:1}}>STEP 1 — CREATE YOUR FILES</div>
-                  <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2}}>Use the workshop above. Download your <span style={{color:"#1a8a1a"}}>tulipN.txt</span> and <span style={{color:"#1a8a1a"}}>tulipN.json</span>.</div>
+                  <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2}}>Design your tulip using <span style={{color:"#1a8a1a"}}>THE MACHINE</span> above, or create your files manually using any plain text editor (Notepad, VS Code, TextEdit in plain text mode). Save as <span style={{color:"#1a8a1a"}}>tulipN.txt</span> and <span style={{color:"#1a8a1a"}}>tulipN.json</span>.</div>
                 </div>
                 <div style={{marginBottom:24}}>
                   <div style={{color:"#39ff14",fontSize:12,marginBottom:8,letterSpacing:1}}>STEP 2 — CHOOSE YOUR TOOL</div>
@@ -976,7 +1085,7 @@ export default function TulipGarden() {
           <>
             <div style={{color:"#1a8a1a",fontSize:11,letterSpacing:3,marginBottom:20,borderBottom:"1px solid #0d3d0d",paddingBottom:8}}>// TOOLS & MARKETPLACES</div>
             <div style={{display:"flex",gap:8,marginBottom:28,flexWrap:"wrap"}}>
-              {[["poll","⬡ COMMUNITY POLL"],["directory","⬡ DIRECTORY"],["ord","⬡ ORD CLI"]].map(([k,label])=>(
+              {[["poll","⬡ COMMUNITY DISCOURSE"],["directory","⬡ MARKETPLACES"],["ord","⬡ ORD CLI"]].map(([k,label])=>(
                 <button key={k} style={subBtn(toolsSubTab===k)} onClick={()=>setToolsSubTab(k)}>{label}</button>
               ))}
             </div>
@@ -989,7 +1098,7 @@ export default function TulipGarden() {
 
       <div style={{borderTop:"1px solid #0d3d0d",padding:"16px 24px",display:"flex",justifyContent:"space-between",fontSize:10,color:"#0d3d0d",letterSpacing:1,flexWrap:"wrap",gap:8}}>
         <span>TULIP GARDEN · BITCOIN ORDINALS · PARENT: {PARENT_ID}</span>
-        <span>ROOTED AT @ · CHILD OF ROGUE (1980)</span>
+        <span>ROOTED AT @ · ROGUE (1980)</span>
       </div>
     </div>
   );
