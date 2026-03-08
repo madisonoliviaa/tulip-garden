@@ -25,19 +25,40 @@ export default function PollPage(): React.ReactElement | null {
 
   useEffect(() => {
     fetch(`${API_BASE}/poll`).then(r => r.json()).then(setVotes).catch(() => {});
-    try {
-      const uv = localStorage.getItem(POLL_KEY);
-      if (uv) setUserVote(uv);
-    } catch {}
-    setLoaded(true);
+    fetch(`${API_BASE}/poll/my-vote`)
+      .then(r => r.json())
+      .then((serverVote: string | null) => {
+        if (serverVote) {
+          setUserVote(serverVote);
+          try { localStorage.setItem(POLL_KEY, serverVote); } catch {}
+        } else {
+          try {
+            const uv = localStorage.getItem(POLL_KEY);
+            if (uv) setUserVote(uv);
+          } catch {}
+        }
+      })
+      .catch(() => {
+        try {
+          const uv = localStorage.getItem(POLL_KEY);
+          if (uv) setUserVote(uv);
+        } catch {}
+      })
+      .finally(() => setLoaded(true));
   }, []);
 
   const vote = (id: string): void => {
     if (userVote) return;
-    setUserVote(id);
-    try { localStorage.setItem(POLL_KEY, id); } catch {}
     fetch(`${API_BASE}/poll/${encodeURIComponent(id)}`, { method: "POST" })
-      .then(r => r.json()).then(setVotes).catch(() => {});
+      .then(r => r.json())
+      .then((data: { votes: Record<string, number>; your_vote: string | null; status: string }) => {
+        setVotes(data.votes);
+        if (data.your_vote) {
+          setUserVote(data.your_vote);
+          try { localStorage.setItem(POLL_KEY, data.your_vote); } catch {}
+        }
+      })
+      .catch(() => {});
   };
 
   const total: number = Object.values(votes).reduce((a: number, b: number) => a + b, 0);

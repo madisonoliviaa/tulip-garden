@@ -1,6 +1,7 @@
 use axum::{
     extract::{Path, State},
-    http::Method,
+    http::{HeaderMap, Method, StatusCode},
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
@@ -37,6 +38,10 @@ fn init_db(conn: &Connection) {
             desc TEXT NOT NULL DEFAULT '',
             type TEXT NOT NULL DEFAULT 'marketplace',
             ts INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS poll_voters (
+            ip TEXT PRIMARY KEY,
+            choice TEXT NOT NULL
         );",
     )
     .expect("failed to initialize database");
@@ -76,8 +81,23 @@ async fn post_tool_click(State(db): State<Db>, Path(tool): Path<String>) -> Json
     Json(count)
 }
 
-async fn get_poll(State(db): State<Db>) -> Json<HashMap<String, i64>> {
-    let conn = db.lock().unwrap();
+fn extract_ip(headers: &HeaderMap) -> String {
+    if let Some(v) = headers.get("fly-client-ip") {
+        if let Ok(s) = v.to_str() {
+            return s.trim().to_string();
+        }
+    }
+    if let Some(v) = headers.get("x-forwarded-for") {
+        if let Ok(s) = v.to_str() {
+            if let Some(first) = s.split(',').next() {
+                return first.trim().to_string();
+            }
+        }
+    }
+    "unknown".to_string()
+}
+
+fn get_all_votes(conn: &Connection) -> HashMap<String, i64> {
     let mut stmt = conn.prepare("SELECT id, count FROM poll_votes").unwrap();
     let rows = stmt
         .query_map([], |row| {
@@ -89,32 +109,112 @@ async fn get_poll(State(db): State<Db>) -> Json<HashMap<String, i64>> {
         let (id, count) = row.unwrap();
         map.insert(id, count);
     }
-    Json(map)
+    map
+}
+
+#[derive(Serialize)]
+struct VoteResponse {
+    votes: HashMap<String, i64>,
+    your_vote: Option<String>,
+    status: String,
+}
+
+async fn get_poll(State(db): State<Db>) -> Json<HashMap<String, i64>> {
+    let conn = db.lock().unwrap();
+    Json(get_all_votes(&conn))
+}
+
+async fn get_my_vote(State(db): State<Db>, headers: HeaderMap) -> Json<Option<String>> {
+    let ip = extract_ip(&headers);
+    let conn = db.lock().unwrap();
+    let choice: Option<String> = conn
+        .query_row(
+            "SELECT choice FROM poll_voters WHERE ip = ?1",
+            [&ip],
+            |row| row.get(0),
+        )
+        .ok();
+    Json(choice)
 }
 
 async fn post_poll_vote(
     State(db): State<Db>,
+    headers: HeaderMap,
     Path(id): Path<String>,
-) -> Json<HashMap<String, i64>> {
+) -> impl IntoResponse {
+    let ip = extract_ip(&headers);
     let conn = db.lock().unwrap();
-    conn.execute(
-        "INSERT INTO poll_votes (id, count) VALUES (?1, 1)
-         ON CONFLICT(id) DO UPDATE SET count = count + 1",
-        [&id],
-    )
-    .unwrap();
-    let mut stmt = conn.prepare("SELECT id, count FROM poll_votes").unwrap();
-    let rows = stmt
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
-        })
-        .unwrap();
-    let mut map = HashMap::new();
-    for row in rows {
-        let (id, count) = row.unwrap();
-        map.insert(id, count);
+
+    let existing: Option<String> = conn
+        .query_row(
+            "SELECT choice FROM poll_voters WHERE ip = ?1",
+            [&ip],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match existing {
+        Some(ref old_choice) if old_choice == &id => {
+            let votes = get_all_votes(&conn);
+            (
+                StatusCode::CONFLICT,
+                Json(VoteResponse {
+                    votes,
+                    your_vote: Some(id),
+                    status: "already_voted".to_string(),
+                }),
+            )
+        }
+        Some(ref old_choice) => {
+            conn.execute(
+                "UPDATE poll_votes SET count = MAX(count - 1, 0) WHERE id = ?1",
+                [old_choice],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO poll_votes (id, count) VALUES (?1, 1)
+                 ON CONFLICT(id) DO UPDATE SET count = count + 1",
+                [&id],
+            )
+            .unwrap();
+            conn.execute(
+                "UPDATE poll_voters SET choice = ?1 WHERE ip = ?2",
+                rusqlite::params![id, ip],
+            )
+            .unwrap();
+            let votes = get_all_votes(&conn);
+            (
+                StatusCode::OK,
+                Json(VoteResponse {
+                    votes,
+                    your_vote: Some(id),
+                    status: "changed".to_string(),
+                }),
+            )
+        }
+        None => {
+            conn.execute(
+                "INSERT INTO poll_votes (id, count) VALUES (?1, 1)
+                 ON CONFLICT(id) DO UPDATE SET count = count + 1",
+                [&id],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO poll_voters (ip, choice) VALUES (?1, ?2)",
+                rusqlite::params![ip, id],
+            )
+            .unwrap();
+            let votes = get_all_votes(&conn);
+            (
+                StatusCode::OK,
+                Json(VoteResponse {
+                    votes,
+                    your_vote: Some(id),
+                    status: "voted".to_string(),
+                }),
+            )
+        }
     }
-    Json(map)
 }
 
 #[derive(Serialize)]
@@ -309,6 +409,7 @@ async fn main() {
         .route("/api/tool-clicks", get(get_tool_clicks))
         .route("/api/tool-clicks/{tool}", post(post_tool_click))
         .route("/api/poll", get(get_poll))
+        .route("/api/poll/my-vote", get(get_my_vote))
         .route("/api/poll/{id}", post(post_poll_vote))
         .route("/api/comments", get(get_comments).post(post_comment))
         .route("/api/comments/{id}/like", post(like_comment))
