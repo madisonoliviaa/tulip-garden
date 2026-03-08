@@ -1,10 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://tulip-garden-api.fly.dev/api";
-const POLL_KEY = "tulip_garden_poll_vote";
+const API_BASE: string = process.env.NEXT_PUBLIC_API_URL || "https://tulip-garden-api.fly.dev/api";
+const POLL_KEY: string = "tulip_garden_poll_vote";
 
-const MARKETPLACES = [
+interface PollMarketplace {
+  id: string;
+  name: string;
+}
+
+const MARKETPLACES: PollMarketplace[] = [
   { id: "ordinalsbot", name: "OrdinalsBot" },
   { id: "unisat", name: "UniSat" },
   { id: "gamma", name: "Gamma.io" },
@@ -12,11 +17,11 @@ const MARKETPLACES = [
   { id: "ord", name: "ord CLI" },
 ];
 
-export default function PollPage() {
-  const [votes, setVotes] = useState({});
-  const [userVote, setUserVote] = useState(null);
-  const [loaded, setLoaded] = useState(false);
-  const [copied, setCopied] = useState(false);
+export default function PollPage(): React.ReactElement | null {
+  const [votes, setVotes] = useState<Record<string, number>>({});
+  const [userVote, setUserVote] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/poll`).then(r => r.json()).then(setVotes).catch(() => {});
@@ -27,7 +32,7 @@ export default function PollPage() {
     setLoaded(true);
   }, []);
 
-  const vote = (id) => {
+  const vote = (id: string): void => {
     if (userVote) return;
     setUserVote(id);
     try { localStorage.setItem(POLL_KEY, id); } catch {}
@@ -35,11 +40,11 @@ export default function PollPage() {
       .then(r => r.json()).then(setVotes).catch(() => {});
   };
 
-  const total = Object.values(votes).reduce((a, b) => a + b, 0);
-  const maxVotes = Math.max(...Object.values(votes), 1);
-  const mono = { fontFamily: "monospace" };
+  const total: number = Object.values(votes).reduce((a: number, b: number) => a + b, 0);
+  const maxVotes: number = Math.max(...Object.values(votes), 1);
+  const mono: React.CSSProperties = { fontFamily: "monospace" };
 
-  const share = () => {
+  const share = (): void => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -64,11 +69,11 @@ export default function PollPage() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {MARKETPLACES.map(m => {
-            const count = votes[m.id] || 0;
-            const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-            const barWidth = total > 0 ? (count / maxVotes) * 100 : 0;
-            const voted = userVote === m.id;
+          {MARKETPLACES.map((m: PollMarketplace) => {
+            const count: number = votes[m.id] || 0;
+            const pct: number = total > 0 ? Math.round((count / total) * 100) : 0;
+            const barWidth: number = total > 0 ? (count / maxVotes) * 100 : 0;
+            const voted: boolean = userVote === m.id;
             return (
               <div key={m.id} style={{ border: `1px solid ${voted ? "#39ff14" : "#1a4a1a"}`, padding: "12px 14px", background: voted ? "rgba(57,255,20,0.06)" : "rgba(57,255,20,0.02)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>

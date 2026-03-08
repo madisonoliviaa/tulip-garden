@@ -2,22 +2,71 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const PARENT_ID = "5d80c89b9beb2be790fcb2af9b5558d5965ef7bd1c45a0908222011ec8addadei0";
-const ORDINALS_BASE = "https://ordinals.com";
-const DEFAULT_COLOR = "#39ff14";
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://tulip-garden-api.fly.dev/api";
+interface Tulip {
+  id: string;
+  content: string;
+  artist: string | null;
+  tulipNum: number;
+  color: string | null;
+  epitaph: string | null;
+}
 
-const HEADER_ART = `████████╗██╗   ██╗██╗     ██╗██████╗      ██████╗  █████╗ ██████╗ ██████╗ ███████╗███╗   ██╗
+interface Marketplace {
+  id: string;
+  name: string;
+  url: string;
+}
+
+interface Comment {
+  id: string;
+  name: string;
+  text: string;
+  ts: string;
+  likes: number;
+  dislikes: number;
+}
+
+interface Submission {
+  id: string;
+  name: string;
+  url: string;
+  desc: string;
+  type: string;
+  ts: string;
+}
+
+interface Terminal {
+  id: number;
+  type: "bash" | "ubuntu" | "restricted";
+}
+
+interface PanicLine {
+  text: string;
+  color?: string;
+}
+
+interface PanicConfig {
+  text: string;
+  delay: number;
+  color?: string;
+}
+
+const PARENT_ID: string = "5d80c89b9beb2be790fcb2af9b5558d5965ef7bd1c45a0908222011ec8addadei0";
+const ORDINALS_BASE: string = "https://ordinals.com";
+const DEFAULT_COLOR: string = "#39ff14";
+const API_BASE: string = process.env.NEXT_PUBLIC_API_URL || "https://tulip-garden-api.fly.dev/api";
+
+const HEADER_ART: string = `████████╗██╗   ██╗██╗     ██╗██████╗      ██████╗  █████╗ ██████╗ ██████╗ ███████╗███╗   ██╗
 ╚══██╔══╝██║   ██║██║     ██║██╔══██╗    ██╔════╝ ██╔══██╗██╔══██╗██╔══██╗██╔════╝████╗  ██║
    ██║   ██║   ██║██║     ██║██████╔╝    ██║  ███╗███████║██████╔╝██║  ██║█████╗  ██╔██╗ ██║
    ██║   ██║   ██║██║     ██║██╔═══╝     ██║   ██║██╔══██║██╔══██╗██║  ██║██╔══╝  ██║╚██╗██║
    ██║   ╚██████╔╝███████╗██║██║         ╚██████╔╝██║  ██║██║  ██║██████╔╝███████╗██║ ╚████║
    ╚═╝    ╚═════╝ ╚══════╝╚═╝╚═╝          ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚══════╝╚═╝  ╚═══╝`;
 
-const MINI_TULIP = `   _\n  (v)\n   |\n  \\|/`;
-const DEFAULT_TULIP = `   _\n  (v)\n   |\n  \\|/`;
+const MINI_TULIP: string = `   _\n  (v)\n   |\n  \\|/`;
+const DEFAULT_TULIP: string = `   _\n  (v)\n   |\n  \\|/`;
 
-const MARKETPLACES = [
+const MARKETPLACES: Marketplace[] = [
   { id: "ordinalsbot", name: "OrdinalsBot", url: "https://ordinalsbot.com" },
   { id: "unisat", name: "UniSat", url: "https://unisat.io/inscribe" },
   { id: "gamma", name: "Gamma.io", url: "https://gamma.io/inscribe" },
@@ -25,18 +74,18 @@ const MARKETPLACES = [
   { id: "ord", name: "ord CLI", url: "https://github.com/ordinals/ord" },
 ];
 
-const POLL_KEY = "tulip_garden_poll_vote";
+const POLL_KEY: string = "tulip_garden_poll_vote";
 
-function hexToRgb(hex) {
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+function hexToRgb(hex: string): string {
+  const r: number = parseInt(hex.slice(1,3),16), g: number = parseInt(hex.slice(3,5),16), b: number = parseInt(hex.slice(5,7),16);
   return `${r},${g},${b}`;
 }
 
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
+    const check = (): void => setIsMobile(window.innerWidth < 640);
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
@@ -44,24 +93,34 @@ function useIsMobile() {
   return isMobile;
 }
 
-function ScanlineOverlay() {
+function ScanlineOverlay(): React.ReactElement {
   return <div style={{ position:"fixed",top:0,left:0,width:"100%",height:"100%",pointerEvents:"none",zIndex:9999,background:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px)" }} />;
 }
 
-function Cursor() {
-  const [vis,setVis] = useState(true);
+function Cursor(): React.ReactElement {
+  const [vis,setVis] = useState<boolean>(true);
   useEffect(()=>{ const t=setInterval(()=>setVis(v=>!v),530); return ()=>clearInterval(t); },[]);
   return <span style={{opacity:vis?1:0,color:"#39ff14"}}>█</span>;
 }
 
-function TulipCard({ id, index, content, artist, tulipNum, color, epitaph }) {
-  const [visible,setVisible] = useState(false);
+interface TulipCardProps {
+  id: string;
+  index: number;
+  content: string;
+  artist: string | null;
+  tulipNum: number;
+  color: string | null;
+  epitaph: string | null;
+}
+
+function TulipCard({ id, index, content, artist, tulipNum, color, epitaph }: TulipCardProps): React.ReactElement {
+  const [visible,setVisible] = useState<boolean>(false);
   useEffect(()=>{ const t=setTimeout(()=>setVisible(true),index*120); return ()=>clearTimeout(t); },[index]);
-  const isEasterEgg = artist === "rodney" && color === "#efface" && epitaph === "Goodbye, rogue...";
-  const derivedColor = id ? `#${id.slice(0,6)}` : DEFAULT_COLOR;
-  const c = isEasterEgg ? "#FFD700" : (color || derivedColor);
-  const rgb = hexToRgb(c);
-  const shortId = id ? `${id.slice(0,8)}...${id.slice(-4)}` : "???";
+  const isEasterEgg: boolean = artist === "rodney" && color === "#efface" && epitaph === "Goodbye, rogue...";
+  const derivedColor: string = id ? `#${id.slice(0,6)}` : DEFAULT_COLOR;
+  const c: string = isEasterEgg ? "#FFD700" : (color || derivedColor);
+  const rgb: string = hexToRgb(c);
+  const shortId: string = id ? `${id.slice(0,8)}...${id.slice(-4)}` : "???";
   return (
     <div style={{ border:"1px solid #1a3a1a", padding:"16px", fontFamily:"monospace", transition:"all 0.6s ease", opacity:visible?1:0, transform:visible?"translateY(0)":"translateY(20px)", background:"transparent", position:"relative", overflow:"visible", ...(isEasterEgg ? {boxShadow:`0 0 20px rgba(${rgb},0.3)`,border:`1px solid ${c}40`} : {}) }}>
       <span style={{position:"absolute",top:4,left:4,color:"#1a4a1a",fontSize:10}}>┌</span>
@@ -80,14 +139,18 @@ function TulipCard({ id, index, content, artist, tulipNum, color, epitaph }) {
   );
 }
 
-function GrowingField({ tulips }) {
+interface GrowingFieldProps {
+  tulips: Tulip[];
+}
+
+function GrowingField({ tulips }: GrowingFieldProps): React.ReactElement {
   return (
     <div style={{fontFamily:"monospace",padding:"20px 0",overflowX:"auto"}}>
       <style>{`@keyframes grow{from{opacity:0;transform:scaleY(0.2) translateY(20px);transform-origin:bottom}to{opacity:1;transform:scaleY(1) translateY(0);transform-origin:bottom}}`}</style>
       <div style={{display:"flex",alignItems:"flex-end",gap:6,minWidth:"max-content",padding:"0 20px"}}>
-        {tulips.map((t,i)=>{
-          const c = t.color||(t.id?`#${t.id.slice(0,6)}`:DEFAULT_COLOR);
-          const rgb = hexToRgb(c);
+        {tulips.map((t: Tulip, i: number)=>{
+          const c: string = t.color||(t.id?`#${t.id.slice(0,6)}`:DEFAULT_COLOR);
+          const rgb: string = hexToRgb(c);
           return (
             <div key={t.id||i} style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
               <pre style={{color:c,fontSize:12,lineHeight:1.1,margin:0,textShadow:`0 0 6px rgba(${rgb},0.6)`,animation:`grow 0.8s ease ${i*0.15}s both`,whiteSpace:"pre"}}>{t.content||MINI_TULIP}</pre>
@@ -102,38 +165,42 @@ function GrowingField({ tulips }) {
   );
 }
 
-function TimelineMode({ tulips }) {
-  const [current, setCurrent] = useState(0);
-  const [phase, setPhase] = useState("in"); // "in" | "hold" | "out"
-  const timerRef = useRef(null);
+interface TimelineModeProps {
+  tulips: Tulip[];
+}
+
+function TimelineMode({ tulips }: TimelineModeProps): React.ReactElement {
+  const [current, setCurrent] = useState<number>(0);
+  const [phase, setPhase] = useState<"in" | "hold" | "out">("in");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (tulips.length === 0) return;
-    const cycle = () => {
+    const cycle = (): void => {
       setPhase("in");
       timerRef.current = setTimeout(() => {
         setPhase("hold");
         timerRef.current = setTimeout(() => {
           setPhase("out");
           timerRef.current = setTimeout(() => {
-            setCurrent(c => (c + 1) % tulips.length);
+            setCurrent((c: number) => (c + 1) % tulips.length);
           }, 1200);
         }, 4000);
       }, 1200);
     };
     cycle();
-    return () => clearTimeout(timerRef.current);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [current, tulips.length]);
 
   if (tulips.length === 0) return (
     <div style={{textAlign:"center",color:"#1a6a1a",padding:60,fontFamily:"monospace"}}>THE SOIL IS READY. NO TULIPS YET. <Cursor /></div>
   );
 
-  const t = tulips[current];
-  const c = t.color || (t.id ? `#${t.id.slice(0,6)}` : DEFAULT_COLOR);
-  const rgb = hexToRgb(c);
-  const opacity = phase === "hold" ? 1 : 0;
-  const translateY = phase === "hold" ? 0 : phase === "in" ? 30 : -30;
+  const t: Tulip = tulips[current];
+  const c: string = t.color || (t.id ? `#${t.id.slice(0,6)}` : DEFAULT_COLOR);
+  const rgb: string = hexToRgb(c);
+  const opacity: number = phase === "hold" ? 1 : 0;
+  const translateY: number = phase === "hold" ? 0 : phase === "in" ? 30 : -30;
 
   return (
     <div style={{minHeight:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"monospace",position:"relative",overflow:"hidden"}}>
@@ -141,125 +208,119 @@ function TimelineMode({ tulips }) {
       <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:300,height:300,borderRadius:"50%",background:`radial-gradient(circle,rgba(${rgb},0.06) 0%,transparent 70%)`,transition:"background 1.2s ease",pointerEvents:"none"}} />
 
       <div style={{transition:"opacity 1.2s ease, transform 1.2s ease",opacity,transform:`translateY(${translateY}px)`,textAlign:"center",zIndex:1,padding:"0 40px",maxWidth:500}}>
-        {/* Tulip number */}
         <div style={{color:`${c}60`,fontSize:11,letterSpacing:4,marginBottom:20}}>
           TULIP #{String(current).padStart(3,"0")} · {current+1} OF {tulips.length}
         </div>
 
-        {/* The art */}
         <pre style={{color:c,fontSize:18,lineHeight:1.3,margin:"0 auto 24px",display:"inline-block",textAlign:"left",textShadow:`0 0 20px rgba(${rgb},0.8)`,whiteSpace:"pre"}}>
           {t.content || MINI_TULIP}
         </pre>
 
-        {/* Divider */}
         <div style={{color:`${c}30`,fontSize:12,margin:"0 0 20px",letterSpacing:3}}>{"— ⸻ —"}</div>
 
-        {/* Artist */}
         {t.artist && (
           <div style={{color:`${c}90`,fontSize:13,letterSpacing:2,marginBottom:12}}>{t.artist}</div>
         )}
 
-        {/* Epitaph */}
         {t.epitaph && (
           <div style={{color:c,fontSize:12,fontStyle:"italic",lineHeight:1.8,marginBottom:16,opacity:0.85}}>
             "{t.epitaph}"
           </div>
         )}
 
-        {/* Timestamp-style inscription ID */}
         <div style={{color:`${c}30`,fontSize:9,letterSpacing:1,marginTop:8}}>
           <a href={`${ORDINALS_BASE}/inscription/${t.id}`} target="_blank" rel="noopener noreferrer" style={{color:`${c}30`,textDecoration:"none"}}>{t.id?.slice(0,16)}...</a>
         </div>
       </div>
 
-      {/* Progress dots */}
       <div style={{position:"absolute",bottom:20,display:"flex",gap:8}}>
-        {tulips.map((_,i)=>(
-          <div key={i} onClick={()=>{clearTimeout(timerRef.current);setCurrent(i);}} style={{width:i===current?20:6,height:6,background:i===current?(tulips[i].color||(tulips[i].id?`#${tulips[i].id.slice(0,6)}`:DEFAULT_COLOR)):"#1a4a1a",borderRadius:3,cursor:"pointer",transition:"all 0.4s ease"}} />
+        {tulips.map((_: Tulip, i: number)=>(
+          <div key={i} onClick={()=>{if (timerRef.current) clearTimeout(timerRef.current);setCurrent(i);}} style={{width:i===current?20:6,height:6,background:i===current?(tulips[i].color||(tulips[i].id?`#${tulips[i].id.slice(0,6)}`:DEFAULT_COLOR)):"#1a4a1a",borderRadius:3,cursor:"pointer",transition:"all 0.4s ease"}} />
         ))}
       </div>
 
-      {/* Manual nav */}
       <div style={{position:"absolute",bottom:20,right:24,display:"flex",gap:8}}>
-        <button onClick={()=>{clearTimeout(timerRef.current);setCurrent(c=>(c-1+tulips.length)%tulips.length);}} style={{background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"4px 10px",cursor:"pointer",fontFamily:"monospace",fontSize:11}}>◀</button>
-        <button onClick={()=>{clearTimeout(timerRef.current);setCurrent(c=>(c+1)%tulips.length);}} style={{background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"4px 10px",cursor:"pointer",fontFamily:"monospace",fontSize:11}}>▶</button>
+        <button onClick={()=>{if (timerRef.current) clearTimeout(timerRef.current);setCurrent((c: number)=>(c-1+tulips.length)%tulips.length);}} style={{background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"4px 10px",cursor:"pointer",fontFamily:"monospace",fontSize:11}}>◀</button>
+        <button onClick={()=>{if (timerRef.current) clearTimeout(timerRef.current);setCurrent((c: number)=>(c+1)%tulips.length);}} style={{background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"4px 10px",cursor:"pointer",fontFamily:"monospace",fontSize:11}}>▶</button>
       </div>
     </div>
   );
 }
 
-function TheMachine({ nextTulipNum }) {
-  const [tulipArt, setTulipArt] = useState(DEFAULT_TULIP);
-  const [artistName, setArtistName] = useState("");
-  const [epitaph, setEpitaph] = useState("");
-  const [color, setColor] = useState("#39ff14");
-  const [copied, setCopied] = useState("");
-  const [fileMenuOpen, setFileMenuOpen] = useState(false);
-  const [terminals, setTerminals] = useState([]);
-  const [activeTerminalId, setActiveTerminalId] = useState(null);
-  const [ubuntuUnlocked, setUbuntuUnlocked] = useState(() => {
+interface TheMachineProps {
+  nextTulipNum: number;
+}
+
+function TheMachine({ nextTulipNum }: TheMachineProps): React.ReactElement {
+  const [tulipArt, setTulipArt] = useState<string>(DEFAULT_TULIP);
+  const [artistName, setArtistName] = useState<string>("");
+  const [epitaph, setEpitaph] = useState<string>("");
+  const [color, setColor] = useState<string>("#39ff14");
+  const [copied, setCopied] = useState<string>("");
+  const [fileMenuOpen, setFileMenuOpen] = useState<boolean>(false);
+  const [terminals, setTerminals] = useState<Terminal[]>([]);
+  const [activeTerminalId, setActiveTerminalId] = useState<number | null>(null);
+  const [ubuntuUnlocked, setUbuntuUnlocked] = useState<boolean>(() => {
     try { return localStorage.getItem("tg_ubuntu_unlocked") === "true"; } catch { return false; }
   });
-  const menuRef = useRef(null);
-  const isMobile = useIsMobile();
-  const cols = isMobile ? "1fr" : "1fr 1fr";
-  const activeId = activeTerminalId && terminals.find(t => t.id === activeTerminalId) ? activeTerminalId : (terminals.length > 0 ? terminals[terminals.length - 1].id : null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const isMobile: boolean = useIsMobile();
+  const cols: string = isMobile ? "1fr" : "1fr 1fr";
+  const activeId: number | null = activeTerminalId && terminals.find(t => t.id === activeTerminalId) ? activeTerminalId : (terminals.length > 0 ? terminals[terminals.length - 1].id : null);
 
-  const jsonContent = JSON.stringify({
+  const jsonContent: string = JSON.stringify({
     collection: "Tulip Garden",
     artist: artistName || "yourname",
     ...(color && color !== "#39ff14" ? { color } : {}),
     ...(epitaph ? { epitaph } : {}),
   }, null, 2);
 
-  const downloadFile = (content, filename) => {
+  const downloadFile = (content: string, filename: string): void => {
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const url: string = URL.createObjectURL(blob);
+    const a: HTMLAnchorElement = document.createElement("a");
     a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
   };
 
-  const copy = (text, label) => {
+  const copy = (text: string, label: string): void => {
     navigator.clipboard.writeText(text).then(() => { setCopied(label); setTimeout(() => setCopied(""), 2000); });
   };
 
-  const addTerminal = (type) => {
-    const id = Date.now();
+  const addTerminal = (type: "bash" | "ubuntu" | "restricted"): void => {
+    const id: number = Date.now();
     setTerminals(t => [...t, { id, type }]);
     setActiveTerminalId(id);
     setFileMenuOpen(false);
   };
 
-  const closeTerminal = (id) => {
+  const closeTerminal = (id: number): void => {
     setTerminals(t => t.filter(x => x.id !== id));
     setActiveTerminalId(prev => prev === id ? null : prev);
   };
 
   useEffect(() => {
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setFileMenuOpen(false); };
+    const handler = (e: MouseEvent): void => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setFileMenuOpen(false); };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const mono = { fontFamily: "monospace" };
-  const previewColor = color || DEFAULT_COLOR;
-  const previewRgb = hexToRgb(previewColor);
+  const mono: React.CSSProperties = { fontFamily: "monospace" };
+  const previewColor: string = color || DEFAULT_COLOR;
+  const previewRgb: string = hexToRgb(previewColor);
 
-  const menuBarStyle = { display: "flex", alignItems: "center", background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "0 8px", height: 32, gap: 4, position: "relative" };
-  const menuItemStyle = { color: "#7fff7f", fontSize: 11, padding: "4px 10px", cursor: "pointer", background: "transparent", border: "none", fontFamily: "monospace", letterSpacing: 1 };
-  const dropdownStyle = { position: "absolute", top: 32, left: 0, background: "#0d1a0d", border: "1px solid #1a4a1a", zIndex: 100, minWidth: 200 };
-  const dropdownItemStyle = { display: "block", width: "100%", padding: "8px 16px", color: "#7fff7f", fontSize: 11, cursor: "pointer", background: "transparent", border: "none", textAlign: "left", fontFamily: "monospace", letterSpacing: 1 };
+  const menuBarStyle: React.CSSProperties = { display: "flex", alignItems: "center", background: "#0d1a0d", borderBottom: "1px solid #1a4a1a", padding: "0 8px", height: 32, gap: 4, position: "relative" };
+  const menuItemStyle: React.CSSProperties = { color: "#7fff7f", fontSize: 11, padding: "4px 10px", cursor: "pointer", background: "transparent", border: "none", fontFamily: "monospace", letterSpacing: 1 };
+  const dropdownStyle: React.CSSProperties = { position: "absolute", top: 32, left: 0, background: "#0d1a0d", border: "1px solid #1a4a1a", zIndex: 100, minWidth: 200 };
+  const dropdownItemStyle: React.CSSProperties = { display: "block", width: "100%", padding: "8px 16px", color: "#7fff7f", fontSize: 11, cursor: "pointer", background: "transparent", border: "none", textAlign: "left", fontFamily: "monospace", letterSpacing: 1 };
 
   return (
     <div style={{ marginBottom: 36, border: "1px solid #39ff1440", background: "#020a02", boxShadow: "0 0 10px rgba(57,255,20,0.15), 0 0 30px rgba(57,255,20,0.06), inset 0 0 15px rgba(57,255,20,0.03)" }}>
-      {/* Title bar */}
       <div style={{ background: "#061006", borderBottom: "1px solid #0d3d0d", padding: "6px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 3, ...mono }}>THE MACHINE</span>
         <span style={{ color: "#0d3d0d", fontSize: 10, ...mono }}>tulip.txt — editor</span>
       </div>
 
-      {/* Menu bar */}
       <div style={menuBarStyle} ref={menuRef}>
         <div style={{ position: "relative" }}>
           <button style={{ ...menuItemStyle, background: fileMenuOpen ? "rgba(57,255,20,0.1)" : "transparent" }}
@@ -293,13 +354,11 @@ function TheMachine({ nextTulipNum }) {
         <span style={{ color: "#0d3d0d", fontSize: 10, marginLeft: "auto", ...mono }}>tulip-garden — editor</span>
       </div>
 
-      {/* Editor area */}
       <div style={{ padding: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: cols, gap: 16, marginBottom: 16 }}>
-          {/* Tulip editor */}
           <div>
             <div style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 2, marginBottom: 8 }}>// tulip.txt — draw your flower (spaces only, no tabs)</div>
-            <textarea value={tulipArt} onChange={e => setTulipArt(e.target.value)} spellCheck={false}
+            <textarea value={tulipArt} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTulipArt(e.target.value)} spellCheck={false}
               style={{ ...mono, width: "100%", height: 180, background: "rgba(0,0,0,0.4)", color: "#39ff14", border: "1px solid #1a4a1a", padding: "12px", fontSize: 13, lineHeight: 1.4, resize: "vertical", outline: "none", whiteSpace: "pre", overflowWrap: "normal", overflow: "auto" }} />
             <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
               <button onClick={() => setTulipArt(DEFAULT_TULIP)} style={{ ...mono, background: "transparent", border: "1px solid #1a4a1a", color: "#1a6a1a", padding: "5px 10px", cursor: "pointer", fontSize: 10 }}>↺ reset</button>
@@ -307,7 +366,6 @@ function TheMachine({ nextTulipNum }) {
             </div>
           </div>
 
-          {/* Live preview */}
           <div>
             <div style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 2, marginBottom: 8 }}>// live preview — ordinals.com rendering</div>
             <div style={{ border: `1px solid ${previewColor}40`, padding: 16, minHeight: 180, position: "relative", background: `rgba(${previewRgb},0.03)` }}>
@@ -324,24 +382,23 @@ function TheMachine({ nextTulipNum }) {
           </div>
         </div>
 
-        {/* Metadata */}
         <div style={{ border: "1px solid #1a4a1a", padding: 14, marginBottom: 12, background: "rgba(0,0,0,0.2)" }}>
           <div style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 2, marginBottom: 12 }}>// tulip.json — metadata</div>
           <div style={{ display: "grid", gridTemplateColumns: cols, gap: 12, marginBottom: 12 }}>
             <div>
               <div style={{ color: "#1a6a1a", fontSize: 10, marginBottom: 5 }}>artist</div>
-              <input type="text" value={artistName} onChange={e => setArtistName(e.target.value)} placeholder="yourname"
+              <input type="text" value={artistName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setArtistName(e.target.value)} placeholder="yourname"
                 style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a", color: "#39ff14", padding: "7px 10px", fontSize: 12, width: "100%", outline: "none" }} />
             </div>
             <div>
               <div style={{ color: "#1a6a1a", fontSize: 10, marginBottom: 5 }}>color <span style={{ color: "#0d4a0d" }}>(optional — or leave blank to <a href="https://docs.ordinals.com/inscriptions/metadata.html" target="_blank" rel="noopener noreferrer" style={{ color: "#0d4a0d", textDecoration: "none" }}>unidentify</a>)</span></div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <input type="color" value={color} onChange={e => setColor(e.target.value)}
+                <input type="color" value={color} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setColor(e.target.value)}
                   style={{ width: 34, height: 32, border: "1px solid #1a4a1a", background: "transparent", cursor: "pointer", padding: 1 }} />
-                <input type="text" value={color} onChange={e => setColor(e.target.value)} placeholder="#39ff14"
+                <input type="text" value={color} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setColor(e.target.value)} placeholder="#39ff14"
                   style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a", color, padding: "7px 10px", fontSize: 12, width: 110, outline: "none" }} />
                 <div style={{ display: "flex", gap: 4 }}>
-                  {["#ff6b9d", "#00d4ff", "#ffaa00", "#a855f7", "#39ff14", "#ffffff"].map(c => (
+                  {["#ff6b9d", "#00d4ff", "#ffaa00", "#a855f7", "#39ff14", "#ffffff"].map((c: string) => (
                     <div key={c} onClick={() => setColor(c)} style={{ width: 18, height: 18, background: c, cursor: "pointer", border: color === c ? "2px solid white" : "1px solid #1a4a1a", borderRadius: 2 }} />
                   ))}
                 </div>
@@ -350,7 +407,7 @@ function TheMachine({ nextTulipNum }) {
           </div>
           <div style={{ marginBottom: 12 }}>
             <div style={{ color: "#1a6a1a", fontSize: 10, marginBottom: 5 }}>epitaph <span style={{ color: "#0d4a0d" }}>(optional — your words, forever on Bitcoin)</span></div>
-            <input type="text" value={epitaph} onChange={e => setEpitaph(e.target.value)} placeholder="here bloomed a builder"
+            <input type="text" value={epitaph} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEpitaph(e.target.value)} placeholder="here bloomed a builder"
               style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a", color: "#7fff7f", padding: "7px 10px", fontSize: 12, width: "100%", outline: "none", fontStyle: "italic" }} />
           </div>
           <pre style={{ ...mono, background: "rgba(0,0,0,0.4)", border: "1px solid #0d3d0d", padding: "10px 14px", fontSize: 11, color: "#7fff7f", marginBottom: 10, lineHeight: 1.7 }}>{jsonContent}</pre>
@@ -359,7 +416,6 @@ function TheMachine({ nextTulipNum }) {
           </div>
         </div>
 
-        {/* Checklist */}
         <div style={{ border: "1px solid #1a4a1a", padding: "10px 14px", background: "rgba(0,0,0,0.1)" }}>
           <div style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 2, marginBottom: 6 }}>// checklist</div>
           <div style={{ color: "#1a6a1a", fontSize: 11, lineHeight: 2.2, ...mono }}>
@@ -372,16 +428,14 @@ function TheMachine({ nextTulipNum }) {
         </div>
       </div>
 
-      {/* Hidden build info — visibility:hidden, must be changed to visible in DevTools */}
       <div id="build-info" style={{visibility:"hidden", opacity:0.25, color:"#39ff14", fontSize:10, fontFamily:"monospace", padding:"4px 16px", borderTop:"1px solid #0d3d0d", letterSpacing:2}}>
         Ubuntu 22.04.3 LTS &mdash; build: 0x4B1D
       </div>
 
-      {/* Tabbed terminal area */}
       {terminals.length > 0 && (
         <div style={{ borderTop: "1px solid #39ff1430" }}>
           <div style={{ display: "flex", background: "#0d1a0d" }}>
-            {terminals.map(term => (
+            {terminals.map((term: Terminal) => (
               <div key={term.id}
                 onClick={() => setActiveTerminalId(term.id)}
                 style={{
@@ -395,12 +449,12 @@ function TheMachine({ nextTulipNum }) {
                   fontSize: 10, fontFamily: "monospace", letterSpacing: 2
                 }}>
                 <span>{term.type === "bash" ? "BASH" : term.type === "ubuntu" ? "UBUNTU" : "RESTRICTED"}</span>
-                <button onClick={(e) => { e.stopPropagation(); closeTerminal(term.id); }}
+                <button onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); closeTerminal(term.id); }}
                   style={{ background: "transparent", border: "none", color: activeId === term.id ? "#39ff1480" : "#0d3d0d", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
               </div>
             ))}
           </div>
-          {terminals.map(term => (
+          {terminals.map((term: Terminal) => (
             activeId === term.id && (
               <div key={term.id}>
                 {term.type === "bash" ? (
@@ -423,27 +477,30 @@ function TheMachine({ nextTulipNum }) {
   );
 }
 
-function BashTerminal({ onClose, noHeader }) {
-  const [lines, setLines] = useState(["bash-5.2$ "]);
-  const [input, setInput] = useState("");
-  const bottomRef = useRef(null);
-  const mono = { fontFamily: "monospace" };
+interface BashTerminalProps {
+  onClose: () => void;
+  noHeader?: boolean;
+}
+
+function BashTerminal({ onClose, noHeader }: BashTerminalProps): React.ReactElement {
+  const [lines, setLines] = useState<string[]>(["bash-5.2$ "]);
+  const [input, setInput] = useState<string>("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const mono: React.CSSProperties = { fontFamily: "monospace" };
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lines]);
 
-  const handleKey = (e) => {
+  const handleKey = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key !== "Enter") return;
-    const cmd = input.trim();
-    const newLines = [...lines.slice(0, -1), `bash-5.2$ ${cmd}`];
+    const cmd: string = input.trim();
+    const newLines: string[] = [...lines.slice(0, -1), `bash-5.2$ ${cmd}`];
 
-    // Only accept printf commands
-    const printfMatch = cmd.match(/^printf\s+"?%x\\n"?\s+(\d+)$/);
+    const printfMatch: RegExpMatchArray | null = cmd.match(/^printf\s+"?%x\\n"?\s+(\d+)$/);
     if (printfMatch) {
-      const num = parseInt(printfMatch[1]);
-      const hex = num.toString(16);
+      const num: number = parseInt(printfMatch[1]);
+      const hex: string = num.toString(16);
       newLines.push(hex);
     } else if (cmd === "") {
-      // nothing
     } else if (cmd.startsWith("printf")) {
       newLines.push(`printf: invalid format — try: printf "%x\n" 672274793`);
     } else {
@@ -464,11 +521,11 @@ function BashTerminal({ onClose, noHeader }) {
         </div>
       )}
       <div style={{ padding: "10px 14px", height: 180, overflowY: "auto", fontSize: 12, color: "#39ff14" }}>
-        {lines.map((l, i) => (
+        {lines.map((l: string, i: number) => (
           <div key={i}>{i === lines.length - 1 ? (
             <span>
               {l}
-              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} autoFocus
+              <input value={input} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)} onKeyDown={handleKey} autoFocus
                 style={{ background: "transparent", border: "none", outline: "none", color: "#39ff14", fontSize: 12, fontFamily: "monospace", width: "60%" }} />
             </span>
           ) : l}</div>
@@ -479,22 +536,27 @@ function BashTerminal({ onClose, noHeader }) {
   );
 }
 
-function UbuntuTerminal({ onClose, noHeader }) {
-  const [stage, setStage] = useState("login"); // login | password | root | done
-  const [lines, setLines] = useState(["Ubuntu 22.04.3 LTS tulip-garden tty1", "", "tulip-garden login: "]);
-  const [input, setInput] = useState("");
-  const [showInput, setShowInput] = useState(true);
-  const [kernelPanic, setKernelPanic] = useState(false);
-  const bottomRef = useRef(null);
-  const mono = { fontFamily: "monospace" };
+interface UbuntuTerminalProps {
+  onClose: () => void;
+  noHeader?: boolean;
+}
+
+function UbuntuTerminal({ onClose, noHeader }: UbuntuTerminalProps): React.ReactElement {
+  const [stage, setStage] = useState<"login" | "password" | "root" | "done">("login");
+  const [lines, setLines] = useState<string[]>(["Ubuntu 22.04.3 LTS tulip-garden tty1", "", "tulip-garden login: "]);
+  const [input, setInput] = useState<string>("");
+  const [showInput, setShowInput] = useState<boolean>(true);
+  const [kernelPanic, setKernelPanic] = useState<boolean>(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const mono: React.CSSProperties = { fontFamily: "monospace" };
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lines, kernelPanic]);
 
-  const addLine = (line) => setLines(l => [...l, line]);
+  const addLine = (line: string): void => setLines(l => [...l, line]);
 
-  const handleKey = (e) => {
+  const handleKey = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key !== "Enter") return;
-    const cmd = input.trim();
+    const cmd: string = input.trim();
     setInput("");
 
     if (stage === "login") {
@@ -511,7 +573,6 @@ function UbuntuTerminal({ onClose, noHeader }) {
     }
 
     if (stage === "password") {
-      // Password hidden — just shows blank
       setLines(l => [...l.slice(0, -1), "Password: "]);
       if (cmd === "@") {
         setTimeout(() => {
@@ -537,23 +598,20 @@ function UbuntuTerminal({ onClose, noHeader }) {
     if (stage === "root") {
       setLines(l => [...l.slice(0, -1), `root@tulip-garden:~# ${cmd}`]);
 
-      // Check for printf
-      const printfMatch = cmd.match(/printf\s+"?%x\\n"?\s+(\d+)/);
+      const printfMatch: RegExpMatchArray | null = cmd.match(/printf\s+"?%x\\n"?\s+(\d+)/);
       if (printfMatch) {
-        const num = parseInt(printfMatch[1]);
+        const num: number = parseInt(printfMatch[1]);
         setLines(l => [...l, num.toString(16), "", "root@tulip-garden:~# "]);
         return;
       }
 
-      // Check for the reboot syscall easter egg
-      const rebootMatch = cmd.includes("0xFEE1DEAD") && cmd.includes("0x28121969");
+      const rebootMatch: boolean = cmd.includes("0xFEE1DEAD") && cmd.includes("0x28121969");
       if (rebootMatch) {
         setShowInput(false);
         setKernelPanic(true);
         return;
       }
 
-      // Any other command
       setLines(l => [...l,
         `bash: ${cmd.split("(")[0].trim()}: Permission denied`,
         "hint: this machine only reboots.",
@@ -586,13 +644,13 @@ function UbuntuTerminal({ onClose, noHeader }) {
         </div>
       )}
       <div style={{ padding: "10px 14px", height: 220, overflowY: "auto", fontSize: 12, color: "#39ff14" }}>
-        {lines.map((l, i) => (
+        {lines.map((l: string, i: number) => (
           <div key={i} style={{ color: i < 3 ? "#1a8a1a" : "#39ff14" }}>
             {i === lines.length - 1 && showInput ? (
               <span>
                 {l}
-                <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} autoFocus
-                  style={{ background: "transparent", border: "none", outline: "none", color: "#39ff14", fontSize: 12, fontFamily: "monospace", width: "60%", ...(stage === "password" ? { WebkitTextSecurity: "disc" } : {}) }} />
+                <input value={input} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)} onKeyDown={handleKey} autoFocus
+                  style={{ background: "transparent", border: "none", outline: "none", color: "#39ff14", fontSize: 12, fontFamily: "monospace", width: "60%", ...(stage === "password" ? { WebkitTextSecurity: "disc" } as React.CSSProperties : {}) }} />
               </span>
             ) : l}
           </div>
@@ -603,11 +661,15 @@ function UbuntuTerminal({ onClose, noHeader }) {
   );
 }
 
-function KernelPanicAnimation({ onDone }) {
-  const [lines, setLines] = useState([]);
-  const mono = { fontFamily: "monospace" };
+interface KernelPanicAnimationProps {
+  onDone: () => void;
+}
 
-  const panicLines = [
+function KernelPanicAnimation({ onDone }: KernelPanicAnimationProps): React.ReactElement {
+  const [lines, setLines] = useState<PanicLine[]>([]);
+  const mono: React.CSSProperties = { fontFamily: "monospace" };
+
+  const panicLines: PanicConfig[] = [
     { text: "", delay: 0 },
     { text: "[    0.000000] KERNEL PANIC — not syncing", delay: 100 },
     { text: "[    0.000001] magic value accepted: 0xFEE1DEAD", delay: 400 },
@@ -624,7 +686,7 @@ function KernelPanicAnimation({ onDone }) {
   ];
 
   useEffect(() => {
-    panicLines.forEach(({ text, delay, color }) => {
+    panicLines.forEach(({ text, delay, color }: PanicConfig) => {
       setTimeout(() => {
         setLines(l => [...l, { text, color }]);
       }, delay);
@@ -634,25 +696,29 @@ function KernelPanicAnimation({ onDone }) {
 
   return (
     <div style={{ padding: "14px", height: 260, overflowY: "auto", fontSize: 12, ...mono }}>
-      {lines.map((l, i) => (
+      {lines.map((l: PanicLine, i: number) => (
         <div key={i} style={{ color: l.color || (l.text.includes("0xefface") ? "#ff4444" : "#39ff14"), marginBottom: 2 }}>{l.text}</div>
       ))}
     </div>
   );
 }
 
-function RestrictedTerminal({ onUnlock }) {
-  const [input, setInput] = useState("");
-  const [lines, setLines] = useState(["ACCESS LOCKED", "this terminal requires authorization.", "", "password: "]);
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
-  const mono = { fontFamily: "monospace" };
+interface RestrictedTerminalProps {
+  onUnlock: () => void;
+}
+
+function RestrictedTerminal({ onUnlock }: RestrictedTerminalProps): React.ReactElement {
+  const [input, setInput] = useState<string>("");
+  const [lines, setLines] = useState<string[]>(["ACCESS LOCKED", "this terminal requires authorization.", "", "password: "]);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const mono: React.CSSProperties = { fontFamily: "monospace" };
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lines]);
 
-  const handleKey = (e) => {
+  const handleKey = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key !== "Enter") return;
-    const pwd = input;
+    const pwd: string = input;
     setInput("");
     if (pwd === "0x4B1D") {
       setLines(l => [...l.slice(0, -1), "password: ••••••", "", "ACCESS GRANTED — unlocking..."]);
@@ -665,15 +731,15 @@ function RestrictedTerminal({ onUnlock }) {
   return (
     <div style={{ background: "#020a02", ...mono }} onClick={() => inputRef.current?.focus()}>
       <div style={{ padding: "10px 14px", height: 180, overflowY: "auto", fontSize: 12 }}>
-        {lines.map((l, i) => (
+        {lines.map((l: string, i: number) => (
           <div key={i} style={{
             color: l.startsWith("ACCESS DENIED") ? "#ff4444" : l.startsWith("ACCESS GRANTED") ? "#39ff14" : l === "ACCESS LOCKED" ? "#1a4a1a" : "#1a8a1a"
           }}>
             {i === lines.length - 1 && l === "password: " ? (
               <span>
                 <span style={{ color: "#1a8a1a" }}>{l}</span>
-                <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey} autoFocus
-                  style={{ background: "transparent", border: "none", outline: "none", color: "#39ff14", fontSize: 12, fontFamily: "monospace", width: "50%", WebkitTextSecurity: "disc", caretColor: "#39ff14" }} />
+                <input ref={inputRef} value={input} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)} onKeyDown={handleKey} autoFocus
+                  style={{ background: "transparent", border: "none", outline: "none", color: "#39ff14", fontSize: 12, fontFamily: "monospace", width: "50%", WebkitTextSecurity: "disc", caretColor: "#39ff14" } as React.CSSProperties} />
               </span>
             ) : l}
           </div>
@@ -685,23 +751,23 @@ function RestrictedTerminal({ onUnlock }) {
 }
 
 
-const TOOLS = [["OrdinalsBot","ordinalsbot.com"],["UniSat","unisat.io/inscribe"],["Gamma","gamma.io/inscribe"],["OrdDropz","ord-dropz.xyz"],["ord CLI","docs.ordinals.com"]];
-function ToolChooser() {
-  const [clicks, setClicks] = useState({});
+const TOOLS: [string, string][] = [["OrdinalsBot","ordinalsbot.com"],["UniSat","unisat.io/inscribe"],["Gamma","gamma.io/inscribe"],["OrdDropz","ord-dropz.xyz"],["ord CLI","docs.ordinals.com"]];
+function ToolChooser(): React.ReactElement {
+  const [clicks, setClicks] = useState<Record<string, number>>({});
   useEffect(() => {
     fetch(`${API_BASE}/tool-clicks`).then(r => r.json()).then(setClicks).catch(() => {});
   }, []);
-  const total = Object.values(clicks).reduce((a, b) => a + b, 0);
-  const handleClick = (name) => {
+  const total: number = Object.values(clicks).reduce((a: number, b: number) => a + b, 0);
+  const handleClick = (name: string): void => {
     setClicks(prev => ({ ...prev, [name]: (prev[name] || 0) + 1 }));
     fetch(`${API_BASE}/tool-clicks/${encodeURIComponent(name)}`, { method: "POST" }).catch(() => {});
   };
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ color: "#39ff14", fontSize: 12, marginBottom: 8, letterSpacing: 1 }}>STEP 2 — CHOOSE YOUR TOOL</div>
-      {TOOLS.map(([name, url]) => {
-        const count = clicks[name] || 0;
-        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      {TOOLS.map(([name, url]: [string, string]) => {
+        const count: number = clicks[name] || 0;
+        const pct: number = total > 0 ? Math.round((count / total) * 100) : 0;
         return (
           <div key={name} style={{ marginBottom: 6, paddingLeft: 8, borderLeft: "1px solid #1a4a1a", display: "flex", alignItems: "center", gap: 8 }}>
             <a href={`https://${url}`} target="_blank" rel="noopener noreferrer" onClick={() => handleClick(name)} style={{ color: "#7fff7f", textDecoration: "none", fontSize: 11 }}>{name}</a>
@@ -714,72 +780,71 @@ function ToolChooser() {
   );
 }
 
-function MarketplacePoll() {
-  const [votes,setVotes] = useState({});
-  const [userVote,setUserVote] = useState(null);
-  const [loaded,setLoaded] = useState(false);
+function MarketplacePoll(): React.ReactElement {
+  const [votes,setVotes] = useState<Record<string, number>>({});
+  const [userVote,setUserVote] = useState<string | null>(null);
+  const [loaded,setLoaded] = useState<boolean>(false);
   useEffect(()=>{
     fetch(`${API_BASE}/poll`).then(r=>r.json()).then(setVotes).catch(()=>{});
     try{const uv=localStorage.getItem(POLL_KEY);if(uv)setUserVote(uv);}catch{}
     setLoaded(true);
   },[]);
-  const vote=(id)=>{
+  const vote=(id: string): void=>{
     if(userVote)return;
     setUserVote(id);
     try{localStorage.setItem(POLL_KEY,id);}catch{}
     fetch(`${API_BASE}/poll/${encodeURIComponent(id)}`,{method:"POST"}).then(r=>r.json()).then(setVotes).catch(()=>{});
   };
-  const total=Object.values(votes).reduce((a,b)=>a+b,0);
-  const maxVotes=Math.max(...Object.values(votes),1);
-  const mono={fontFamily:"monospace"};
+  const total: number=Object.values(votes).reduce((a: number,b: number)=>a+b,0);
+  const maxVotes: number=Math.max(...Object.values(votes),1);
+  const mono: React.CSSProperties={fontFamily:"monospace"};
 
-  const [comments,setComments] = useState([]);
-  const [commentText,setCommentText] = useState("");
-  const [commentName,setCommentName] = useState("");
-  const [likedComments,setLikedComments] = useState(()=>{try{return JSON.parse(localStorage.getItem("tg_comment_reactions")||"{}");} catch{return{};}});
+  const [comments,setComments] = useState<Comment[]>([]);
+  const [commentText,setCommentText] = useState<string>("");
+  const [commentName,setCommentName] = useState<string>("");
+  const [likedComments,setLikedComments] = useState<Record<string, boolean>>(()=>{try{return JSON.parse(localStorage.getItem("tg_comment_reactions")||"{}");} catch{return{};}});
   useEffect(()=>{fetch(`${API_BASE}/comments`).then(r=>r.json()).then(setComments).catch(()=>{});},[]);
-  const addComment=()=>{
+  const addComment=(): void=>{
     if(!commentText.trim())return;
     fetch(`${API_BASE}/comments`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:commentName.trim()||null,text:commentText.trim()})})
-      .then(r=>r.json()).then(c=>{setComments(prev=>[c,...prev]);setCommentText("");}).catch(()=>{});
+      .then(r=>r.json()).then((c: Comment)=>{setComments(prev=>[c,...prev]);setCommentText("");}).catch(()=>{});
   };
-  const reactComment=(id,type)=>{
+  const reactComment=(id: string,type: "like" | "dislike"): void=>{
     if(likedComments[`${id}_${type}`])return;
-    fetch(`${API_BASE}/comments/${id}/${type}`,{method:"POST"}).then(r=>r.json()).then(updated=>{
+    fetch(`${API_BASE}/comments/${id}/${type}`,{method:"POST"}).then(r=>r.json()).then((updated: Comment)=>{
       setComments(prev=>prev.map(c=>c.id===updated.id?updated:c));
-      const nr={...likedComments,[`${id}_${type}`]:true};
+      const nr: Record<string, boolean>={...likedComments,[`${id}_${type}`]:true};
       setLikedComments(nr);
       try{localStorage.setItem("tg_comment_reactions",JSON.stringify(nr));}catch{}
     }).catch(()=>{});
   };
 
-  const [submitName,setSubmitName] = useState("");
-  const [submitUrl,setSubmitUrl] = useState("");
-  const [submitDesc,setSubmitDesc] = useState("");
-  const [submitType,setSubmitType] = useState("marketplace");
-  const [submitted,setSubmitted] = useState(false);
-  const submitTool=()=>{
+  const [submitName,setSubmitName] = useState<string>("");
+  const [submitUrl,setSubmitUrl] = useState<string>("");
+  const [submitDesc,setSubmitDesc] = useState<string>("");
+  const [submitType,setSubmitType] = useState<string>("marketplace");
+  const [submitted,setSubmitted] = useState<boolean>(false);
+  const submitTool=(): void=>{
     if(!submitName.trim()||!submitUrl.trim())return;
     fetch(`${API_BASE}/submissions`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:submitName.trim(),url:submitUrl.trim(),desc:submitDesc.trim(),type:submitType})})
       .then(()=>{setSubmitName("");setSubmitUrl("");setSubmitDesc("");setSubmitType("marketplace");setSubmitted(true);setTimeout(()=>setSubmitted(false),3000);}).catch(()=>{});
   };
 
-  const inputStyle={...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color:"#7fff7f",padding:"7px 10px",fontSize:11,width:"100%",outline:"none"};
+  const inputStyle: React.CSSProperties={...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color:"#7fff7f",padding:"7px 10px",fontSize:11,width:"100%",outline:"none"};
 
   return (
     <div style={{marginBottom:32}}>
-      {/* Poll */}
       <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:8}}>⬡ POLL — WHICH TOOL DO YOU PREFER?</div>
       <div style={{color:"#1a6a1a",fontSize:11,marginBottom:20,lineHeight:1.8}}>
         {total>0?`${total} vote${total!==1?"s":""} cast.`:"Be the first to vote."}
         {userVote&&<span style={{color:"#7fff7f"}}> You voted for {MARKETPLACES.find(m=>m.id===userVote)?.name}.</span>}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {MARKETPLACES.map(m=>{
-          const count=votes[m.id]||0;
-          const pct=total>0?Math.round((count/total)*100):0;
-          const barWidth=total>0?(count/maxVotes)*100:0;
-          const voted=userVote===m.id;
+        {MARKETPLACES.map((m: Marketplace)=>{
+          const count: number=votes[m.id]||0;
+          const pct: number=total>0?Math.round((count/total)*100):0;
+          const barWidth: number=total>0?(count/maxVotes)*100:0;
+          const voted: boolean=userVote===m.id;
           return (
             <div key={m.id} style={{border:`1px solid ${voted?"#39ff14":"#1a4a1a"}`,padding:"12px 14px",background:voted?"rgba(57,255,20,0.06)":"rgba(57,255,20,0.02)"}}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
@@ -798,12 +863,11 @@ function MarketplacePoll() {
       </div>
       {userVote&&<button onClick={()=>{setUserVote(null);try{localStorage.removeItem(POLL_KEY);}catch{};fetch(`${API_BASE}/poll`).then(r=>r.json()).then(setVotes).catch(()=>{})}} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a4a1a",padding:"6px 12px",cursor:"pointer",fontSize:10,marginTop:12,letterSpacing:1}}>↺ CHANGE VOTE</button>}
 
-      {/* Comments */}
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
         <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ COMMENTS</div>
         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
           {comments.length===0&&<div style={{color:"#1a4a1a",fontSize:11,...mono}}>No comments yet. Be the first.</div>}
-          {comments.map((c,i)=>(
+          {comments.map((c: Comment, i: number)=>(
             <div key={i} style={{border:"1px solid #1a4a1a",padding:"10px 12px",background:"rgba(57,255,20,0.02)"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                 <span style={{color:"#7fff7f",fontSize:11,...mono}}>{c.name}</span>
@@ -818,13 +882,12 @@ function MarketplacePoll() {
           ))}
         </div>
         <div style={{display:"flex",gap:8,marginBottom:8}}>
-          <input value={commentName} onChange={e=>setCommentName(e.target.value)} placeholder="name (optional)" style={{...inputStyle,width:"30%"}} />
-          <input value={commentText} onChange={e=>setCommentText(e.target.value)} placeholder="leave a comment..." style={inputStyle} onKeyDown={e=>{if(e.key==="Enter")addComment();}} />
+          <input value={commentName} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentName(e.target.value)} placeholder="name (optional)" style={{...inputStyle,width:"30%"}} />
+          <input value={commentText} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentText(e.target.value)} placeholder="leave a comment..." style={inputStyle} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>)=>{if(e.key==="Enter")addComment();}} />
           <button onClick={addComment} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"7px 14px",cursor:"pointer",fontSize:10,letterSpacing:1,flexShrink:0}}>POST</button>
         </div>
       </div>
 
-      {/* Submit a tool */}
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
         <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:8}}>⬡ SUBMIT A TOOL OR MARKETPLACE</div>
         <div style={{color:"#1a4a1a",fontSize:10,marginBottom:16,...mono}}>Submissions reviewed before being added to the directory.</div>
@@ -832,12 +895,12 @@ function MarketplacePoll() {
           <div style={{color:"#39ff14",fontSize:12,padding:20,border:"1px solid #1a4a1a",textAlign:"center",...mono}}>✓ Thank you! Your submission has been recorded.</div>
         ):(
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <input value={submitName} onChange={e=>setSubmitName(e.target.value)} placeholder="tool/marketplace name *" style={inputStyle} />
-            <input value={submitUrl} onChange={e=>setSubmitUrl(e.target.value)} placeholder="url *" style={inputStyle} />
-            <input value={submitDesc} onChange={e=>setSubmitDesc(e.target.value)} placeholder="short description" style={inputStyle} />
+            <input value={submitName} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setSubmitName(e.target.value)} placeholder="tool/marketplace name *" style={inputStyle} />
+            <input value={submitUrl} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setSubmitUrl(e.target.value)} placeholder="url *" style={inputStyle} />
+            <input value={submitDesc} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setSubmitDesc(e.target.value)} placeholder="short description" style={inputStyle} />
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <span style={{color:"#1a6a1a",fontSize:10,...mono}}>TYPE:</span>
-              {["marketplace","tool","other"].map(t=>(
+              {["marketplace","tool","other"].map((t: string)=>(
                 <button key={t} onClick={()=>setSubmitType(t)} style={{...mono,background:submitType===t?"rgba(57,255,20,0.1)":"transparent",border:`1px solid ${submitType===t?"#39ff14":"#1a4a1a"}`,color:submitType===t?"#39ff14":"#1a6a1a",padding:"4px 10px",cursor:"pointer",fontSize:10,letterSpacing:1}}>{t.toUpperCase()}</button>
               ))}
             </div>
@@ -849,14 +912,14 @@ function MarketplacePoll() {
   );
 }
 
-function MarketplaceDirectory() {
-  const mono={fontFamily:"monospace"};
-  const marketplaces=MARKETPLACES.filter(m=>m.id!=="ord");
+function MarketplaceDirectory(): React.ReactElement {
+  const mono: React.CSSProperties={fontFamily:"monospace"};
+  const marketplaces: Marketplace[]=MARKETPLACES.filter(m=>m.id!=="ord");
   return (
     <div>
       <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ MARKETPLACES</div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {marketplaces.map(m=>(
+        {marketplaces.map((m: Marketplace)=>(
           <a key={m.id} href={m.url} target="_blank" rel="noopener noreferrer" style={{color:"#7fff7f",fontSize:12,textDecoration:"none",border:"1px solid #1a4a1a",padding:"10px 14px",background:"rgba(57,255,20,0.02)",display:"block",...mono}}>
             → {m.name}
           </a>
@@ -867,9 +930,9 @@ function MarketplaceDirectory() {
   );
 }
 
-function OrdCliGuide() {
-  const mono={fontFamily:"monospace"};
-  const code={background:"rgba(0,0,0,0.4)",border:"1px solid #1a4a1a",padding:"10px 14px",fontSize:11,color:"#7fff7f",display:"block",whiteSpace:"pre",overflowX:"auto",...mono,lineHeight:1.7,marginBottom:16};
+function OrdCliGuide(): React.ReactElement {
+  const mono: React.CSSProperties={fontFamily:"monospace"};
+  const code: React.CSSProperties={background:"rgba(0,0,0,0.4)",border:"1px solid #1a4a1a",padding:"10px 14px",fontSize:11,color:"#7fff7f",display:"block",whiteSpace:"pre",overflowX:"auto",...mono,lineHeight:1.7,marginBottom:16};
   return (
     <div>
       <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:8}}>⬡ ORD CLI — THE OFFICIAL WAY</div>
@@ -902,52 +965,50 @@ function OrdCliGuide() {
   );
 }
 
-export default function TulipGarden() {
-  const [tulips,setTulips] = useState([]);
-  const [loading,setLoading] = useState(true);
-  const [error,setError] = useState(null);
-  const [lastRefresh,setLastRefresh] = useState(null);
-  const [tab,setTab] = useState("garden");
-  const [gardenView,setGardenView] = useState("grid"); // grid | grow | timeline
-  const [toolsSubTab,setToolsSubTab] = useState("poll");
+export default function TulipGarden(): React.ReactElement {
+  const [tulips,setTulips] = useState<Tulip[]>([]);
+  const [loading,setLoading] = useState<boolean>(true);
+  const [error,setError] = useState<string | null>(null);
+  const [lastRefresh,setLastRefresh] = useState<Date | null>(null);
+  const [tab,setTab] = useState<string>("garden");
+  const [gardenView,setGardenView] = useState<string>("grid");
+  const [toolsSubTab,setToolsSubTab] = useState<string>("poll");
 
-  const fetchTulips = useCallback(async()=>{
+  const fetchTulips = useCallback(async(): Promise<void>=>{
     try{
       setLoading(true);
-      const res=await fetch(`${ORDINALS_BASE}/r/children/${PARENT_ID}`);
-      const data=await res.json();
-      const fetchItem=async(id,i)=>{
+      const res: Response=await fetch(`${ORDINALS_BASE}/r/children/${PARENT_ID}`);
+      const data: { ids?: string[]; more?: boolean }=await res.json();
+      const fetchItem=async(id: string, i: number): Promise<Tulip>=>{
         try{
-          const cr=await fetch(`${ORDINALS_BASE}/content/${id}`);
-          const ct=cr.headers.get("content-type")||"";
-          let content="",artist=null,tulipNum=i,color=null,epitaph=null;
+          const cr: Response=await fetch(`${ORDINALS_BASE}/content/${id}`);
+          const ct: string=cr.headers.get("content-type")||"";
+          let content: string="",artist: string | null=null,tulipNum: number=i,color: string | null=null,epitaph: string | null=null;
           if(ct.includes("text")){
-            const text=await cr.text();
+            const text: string=await cr.text();
             try{
-              const j=JSON.parse(text);
+              const j: Record<string, string>=JSON.parse(text);
               artist=j.artist||null;
               color=j.color||null;
               epitaph=j.epitaph||null;
               content=j.content||j.art||j.tulip||j.ascii||j.body||j.text||"";
             }catch{
-              // plain text — preserve exactly as inscribed
-              // strip \r (invisible line-ending artifacts) and trailing spaces per line
               content=text.replace(/\r/g,"").replace(/[ \t]+$/gm,"").replace(/^\n+|\n+$/g,"");
             }
           }
           return{id,content,artist,tulipNum,color,epitaph};
         }catch{return{id,content:MINI_TULIP,artist:null,tulipNum:i,color:null,epitaph:null};}
       };
-      let allIds=[...(data.ids||[])];
+      let allIds: string[]=[...(data.ids||[])];
       if(data.more){
-        let page=1;
+        let page: number=1;
         while(true){
-          const nd=await(await fetch(`${ORDINALS_BASE}/r/children/${PARENT_ID}/${page}`)).json();
+          const nd: { ids?: string[]; more?: boolean }=await(await fetch(`${ORDINALS_BASE}/r/children/${PARENT_ID}/${page}`)).json();
           allIds=[...allIds,...(nd.ids||[])];
           if(!nd.more)break;page++;
         }
       }
-      const items=await Promise.all(allIds.map(fetchItem));
+      const items: Tulip[]=await Promise.all(allIds.map(fetchItem));
       setTulips(items.filter(t=>t.content&&!t.content.trimStart().startsWith("{")));
       setLastRefresh(new Date());
       setError(null);
@@ -957,26 +1018,26 @@ export default function TulipGarden() {
 
   useEffect(()=>{
     fetchTulips();
-    const iv=setInterval(fetchTulips,30000);
+    const iv: ReturnType<typeof setInterval>=setInterval(fetchTulips,30000);
     return()=>clearInterval(iv);
   },[fetchTulips]);
 
-  const nextTulipNum=tulips.length;
+  const nextTulipNum: number=tulips.length;
 
-  const navBtn=(active)=>({
+  const navBtn=(active: boolean): React.CSSProperties=>({
     padding:"10px 20px",background:active?"rgba(57,255,20,0.1)":"transparent",
     color:active?"#39ff14":"#1a6a1a",border:"none",
     borderRight:"1px solid #0d3d0d",borderBottom:active?"2px solid #39ff14":"2px solid transparent",
     cursor:"pointer",fontFamily:"monospace",fontSize:12,letterSpacing:2,
   });
 
-  const subBtn=(active,color)=>({
+  const subBtn=(active: boolean, color?: string): React.CSSProperties=>({
     padding:"7px 14px",background:active?`rgba(57,255,20,0.08)`:"transparent",
     color:active?"#39ff14":"#1a6a1a",border:`1px solid ${active?"#1a8a1a":"#0d3d0d"}`,
     cursor:"pointer",fontFamily:"monospace",fontSize:10,letterSpacing:1,
   });
 
-  const codeBlock={background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",padding:"10px 14px",margin:"8px 0",fontSize:12,color:"#7fff7f",display:"block",whiteSpace:"pre",overflowX:"auto",fontFamily:"monospace",lineHeight:1.7};
+  const codeBlock: React.CSSProperties={background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",padding:"10px 14px",margin:"8px 0",fontSize:12,color:"#7fff7f",display:"block",whiteSpace:"pre",overflowX:"auto",fontFamily:"monospace",lineHeight:1.7};
 
   return (
     <div style={{minHeight:"100vh",background:"#020a02",color:"#39ff14",fontFamily:"monospace"}}>
@@ -992,7 +1053,6 @@ export default function TulipGarden() {
       <div dangerouslySetInnerHTML={{__html:"<!-- 0xFEE1DEAD -->"}} />
       <div dangerouslySetInnerHTML={{__html:'<!-- printf "%x\\n" -->'}} />
 
-      {/* Header */}
       <div style={{borderBottom:"1px solid #0d3d0d",padding:"20px 24px 16px",background:"rgba(0,20,0,0.8)"}}>
         <pre style={{fontSize:5,lineHeight:1.1,color:"#39ff14",textShadow:"0 0 12px rgba(57,255,20,0.4)",whiteSpace:"pre",overflow:"hidden",marginBottom:16}}>{HEADER_ART}</pre>
         <div style={{display:"flex",gap:24,alignItems:"center",flexWrap:"wrap"}}>
@@ -1002,7 +1062,6 @@ export default function TulipGarden() {
         </div>
       </div>
 
-      {/* Status bar */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 24px",background:"#00060a",borderBottom:"1px solid #0d3d0d",fontSize:11,color:"#1a6a1a",letterSpacing:1,flexWrap:"wrap",gap:8}}>
         <span>ORD://TULIP.GARDEN · PARENT: {PARENT_ID.slice(0,12)}...{PARENT_ID.slice(-8)}</span>
         <span>{lastRefresh?`LAST SYNC: ${lastRefresh.toLocaleTimeString()}`:"SYNCING..."} · AUTO-REFRESH: 30s</span>
@@ -1012,9 +1071,8 @@ export default function TulipGarden() {
         </div>
       </div>
 
-      {/* Nav */}
       <div style={{display:"flex",borderBottom:"1px solid #0d3d0d",background:"#00060b",flexWrap:"wrap"}}>
-        {[["garden","🌷 GARDEN"],["plant","✦ PLANT A TULIP"],["tools","⬡ TOOLS"]].map(([k,label])=>(
+        {([["garden","🌷 GARDEN"],["plant","✦ PLANT A TULIP"],["tools","⬡ TOOLS"]] as [string, string][]).map(([k,label]: [string, string])=>(
           <button key={k} style={navBtn(tab===k)} onClick={()=>setTab(k)}>{label}</button>
         ))}
         <a href={`https://ordinals.com/inscription/${PARENT_ID}`} target="_blank" rel="noopener noreferrer"
@@ -1025,9 +1083,8 @@ export default function TulipGarden() {
 
         {tab==="garden"&&(
           <>
-            {/* Garden view switcher */}
             <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
-              {[["grid","⊞ GARDEN"],["grow","⊳ GROWING FIELD"],["timeline","◈ TIMELINE"],["about","⧫ ABOUT"]].map(([k,label])=>(
+              {([["grid","⊞ GARDEN"],["grow","⊳ GROWING FIELD"],["timeline","◈ TIMELINE"],["about","⧫ ABOUT"]] as [string, string][]).map(([k,label]: [string, string])=>(
                 <button key={k} style={subBtn(gardenView===k)} onClick={()=>setGardenView(k)}>{label}</button>
               ))}
             </div>
@@ -1047,7 +1104,7 @@ export default function TulipGarden() {
                   <>
                     <div style={{fontSize:11,color:"#1a6a1a",marginBottom:16,letterSpacing:1}}>// {tulips.length} INSCRIPTION{tulips.length!==1?"S":""} FOUND UNDER PARENT @</div>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:16}}>
-                      {tulips.map((t,i)=><TulipCard key={t.id} {...t} index={i} />)}
+                      {tulips.map((t: Tulip, i: number)=><TulipCard key={t.id} {...t} index={i} />)}
                     </div>
                   </>
                 )}
@@ -1059,7 +1116,7 @@ export default function TulipGarden() {
                     </div>
                     <div style={{marginTop:20,color:"#1a6a1a",fontSize:11,lineHeight:2}}>
                       <div>@ (root) → {PARENT_ID.slice(0,16)}...</div>
-                      {tulips.map((t,i)=>(
+                      {tulips.map((t: Tulip, i: number)=>(
                         <div key={t.id} style={{paddingLeft:16}}>
                           <span style={{color:t.color||(t.id?`#${t.id.slice(0,6)}`:DEFAULT_COLOR)}}>└──</span> tulip #{i} {t.artist?`[${t.artist}]`:""} →{" "}
                           <a href={`https://ordinals.com/inscription/${t.id}`} target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>{t.id.slice(0,12)}...</a>
@@ -1157,7 +1214,7 @@ export default function TulipGarden() {
           <>
             <div style={{color:"#1a8a1a",fontSize:11,letterSpacing:3,marginBottom:20,borderBottom:"1px solid #0d3d0d",paddingBottom:8}}>// TOOLS & MARKETPLACES</div>
             <div style={{display:"flex",gap:8,marginBottom:28,flexWrap:"wrap"}}>
-              {[["poll","⬡ COMMUNITY DISCOURSE"],["directory","⬡ MARKETPLACES"],["ord","⬡ ORD CLI"]].map(([k,label])=>(
+              {([["poll","⬡ COMMUNITY DISCOURSE"],["directory","⬡ MARKETPLACES"],["ord","⬡ ORD CLI"]] as [string, string][]).map(([k,label]: [string, string])=>(
                 <button key={k} style={subBtn(toolsSubTab===k)} onClick={()=>setToolsSubTab(k)}>{label}</button>
               ))}
             </div>
