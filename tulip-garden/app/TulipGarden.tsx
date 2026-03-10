@@ -2,6 +2,20 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
+interface InscriptionInfo {
+  number: number | null;
+  address: string | null;
+  content_type: string | null;
+  content_length: number | null;
+  height: number | null;
+  timestamp: number | null;
+  fee: number | null;
+  value: number | null;
+  sat: number | null;
+  charms: string[];
+  output: string | null;
+}
+
 interface Tulip {
   id: string;
   content: string;
@@ -9,6 +23,7 @@ interface Tulip {
   tulipNum: number;
   color: string | null;
   epitaph: string | null;
+  inscription: InscriptionInfo | null;
 }
 
 interface Marketplace {
@@ -81,6 +96,35 @@ function hexToRgb(hex: string): string {
   return `${r},${g},${b}`;
 }
 
+// Decode hex-encoded CBOR metadata from ordinals /r/metadata/<id> endpoint
+function decodeCborHex(hex: string): Record<string, unknown> | null {
+  try {
+    const bytes = new Uint8Array((hex.match(/.{2}/g) || []).map(b => parseInt(b, 16)));
+    let pos = 0;
+    const readByte = (): number => bytes[pos++];
+    const readLen = (ai: number): number => {
+      if (ai < 24) return ai;
+      if (ai === 24) return readByte();
+      if (ai === 25) return (readByte() << 8) | readByte();
+      if (ai === 26) return ((readByte() << 24) >>> 0) + (readByte() << 16) + (readByte() << 8) + readByte();
+      return 0;
+    };
+    const readValue = (): unknown => {
+      const b = readByte();
+      const mt = b >> 5, ai = b & 0x1f;
+      if (mt === 0) return readLen(ai);
+      if (mt === 1) return -1 - readLen(ai);
+      if (mt === 3) { const len = readLen(ai); const s = bytes.slice(pos, pos + len); pos += len; return new TextDecoder().decode(s); }
+      if (mt === 4) { const len = readLen(ai); const a: unknown[] = []; for (let i = 0; i < len; i++) a.push(readValue()); return a; }
+      if (mt === 5) { const len = readLen(ai); const o: Record<string, unknown> = {}; for (let i = 0; i < len; i++) { o[String(readValue())] = readValue(); } return o; }
+      if (mt === 7) { if (ai === 20) return false; if (ai === 21) return true; if (ai === 22) return null; }
+      return null;
+    };
+    const result = readValue();
+    return (result && typeof result === 'object' && !Array.isArray(result)) ? result as Record<string, unknown> : null;
+  } catch { return null; }
+}
+
 
 function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -141,20 +185,62 @@ function TulipCard({ id, index, content, artist, tulipNum, color, epitaph }: Tul
 
 interface GrowingFieldProps {
   tulips: Tulip[];
+  activeIndex: number;
+  onActiveIndexChange: (i: number) => void;
 }
 
-function GrowingField({ tulips }: GrowingFieldProps): React.ReactElement {
+function GrowingField({ tulips, activeIndex, onActiveIndexChange }: GrowingFieldProps): React.ReactElement {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const scrollToIndex = (i: number): void => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const el = container.querySelector(`[data-tulip-index="${i}"]`) as HTMLElement | null;
+    if (!el) return;
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const scrollLeft = container.scrollLeft + (elRect.left + elRect.width / 2) - (containerRect.left + containerRect.width / 2);
+    container.scrollTo({ left: scrollLeft, behavior: "smooth" });
+  };
+
+  const handleScroll = (): void => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      const container = scrollRef.current;
+      if (!container) return;
+      const containerRect = container.getBoundingClientRect();
+      const centerX = containerRect.left + containerRect.width / 2;
+      let closestIndex = 0;
+      let closestDist = Infinity;
+      tulips.forEach((_: Tulip, i: number) => {
+        const el = container.querySelector(`[data-tulip-index="${i}"]`) as HTMLElement | null;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const dist = Math.abs(rect.left + rect.width / 2 - centerX);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestIndex = i;
+        }
+      });
+      if (closestIndex !== activeIndex) {
+        onActiveIndexChange(closestIndex);
+      }
+    });
+  };
+
   return (
-    <div style={{fontFamily:"monospace",padding:"20px 0",overflowX:"auto"}}>
+    <div style={{fontFamily:"monospace",padding:"20px 0"}}>
       <style>{`@keyframes grow{from{opacity:0;transform:scaleY(0.2) translateY(20px);transform-origin:bottom}to{opacity:1;transform:scaleY(1) translateY(0);transform-origin:bottom}}`}</style>
-      <div style={{display:"flex",alignItems:"flex-end",gap:6,minWidth:"max-content",padding:"0 20px"}}>
+      <div ref={scrollRef} onScroll={handleScroll} style={{display:"flex",alignItems:"flex-end",gap:12,overflowX:"auto",padding:"10px 40px",scrollBehavior:"auto"}}>
         {tulips.map((t: Tulip, i: number)=>{
+          const isActive: boolean = i === activeIndex;
           const c: string = t.color||(t.id?`#${t.id.slice(0,6)}`:DEFAULT_COLOR);
           const rgb: string = hexToRgb(c);
           return (
-            <div key={t.id||i} style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
-              <pre style={{color:c,fontSize:12,lineHeight:1.1,margin:0,textShadow:`0 0 6px rgba(${rgb},0.6)`,animation:`grow 0.8s ease ${i*0.15}s both`,whiteSpace:"pre"}}>{t.content||MINI_TULIP}</pre>
-              <div style={{color:`${c}70`,fontSize:9,marginTop:2}}>#{i}</div>
+            <div key={t.id||i} data-tulip-index={i} onClick={()=>{onActiveIndexChange(i);scrollToIndex(i);}} style={{display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",transition:"all 0.3s ease",transform:isActive?"scale(1.15)":"scale(1)",opacity:isActive?1:0.6,flexShrink:0}}>
+              <pre style={{color:c,fontSize:12,lineHeight:1.1,margin:0,textShadow:`0 0 ${isActive?12:6}px rgba(${rgb},${isActive?0.9:0.4})`,animation:`grow 0.8s ease ${i*0.15}s both`,whiteSpace:"pre"}}>{t.content||MINI_TULIP}</pre>
+              <div style={{color:isActive?c:`${c}50`,fontSize:9,marginTop:4,transition:"color 0.3s ease"}}>#{i}</div>
             </div>
           );
         })}
@@ -165,85 +251,115 @@ function GrowingField({ tulips }: GrowingFieldProps): React.ReactElement {
   );
 }
 
-interface TimelineModeProps {
-  tulips: Tulip[];
+interface MetadataPanelProps {
+  tulip: Tulip | undefined;
+  index: number;
+  total: number;
 }
 
-function TimelineMode({ tulips }: TimelineModeProps): React.ReactElement {
-  const [current, setCurrent] = useState<number>(0);
-  const [phase, setPhase] = useState<"in" | "hold" | "out">("in");
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+function MetadataPanel({ tulip, index, total }: MetadataPanelProps): React.ReactElement {
+  if (!tulip) return (
+    <div style={{fontFamily:"monospace",color:"#1a6a1a",fontSize:11,padding:20,textAlign:"center"}}>NO TULIP SELECTED</div>
+  );
+
+  const derivedColor: string = tulip.id ? `#${tulip.id.slice(0,6)}` : DEFAULT_COLOR;
+  const c: string = tulip.color || derivedColor;
+  const rgb: string = hexToRgb(c);
+
+  const labelStyle: React.CSSProperties = {color:"#1a6a1a",fontSize:10,letterSpacing:2,width:80,flexShrink:0};
+  const valueStyle: React.CSSProperties = {color:"#7fff7f",fontSize:11,fontFamily:"monospace"};
+  const dimStyle: React.CSSProperties = {...valueStyle,color:"#1a8a1a",fontSize:10,wordBreak:"break-all" as const};
+  const rowStyle: React.CSSProperties = {display:"flex",alignItems:"flex-start",gap:12,padding:"6px 0",borderBottom:"1px solid #0a2a0a"};
+
+  // Only show provenance + user-inscribed metadata (artist, color, epitaph)
+  const rows: {label: string; node: React.ReactNode}[] = [];
+  rows.push({label:"PARENT", node: <a href={`${ORDINALS_BASE}/inscription/${PARENT_ID}`} target="_blank" rel="noopener noreferrer" style={{...dimStyle,textDecoration:"none"}}>{PARENT_ID}</a>});
+  rows.push({label:"CHILD", node: <a href={`${ORDINALS_BASE}/inscription/${tulip.id}`} target="_blank" rel="noopener noreferrer" style={{...dimStyle,textDecoration:"none"}}>{tulip.id || "???"}</a>});
+  if(tulip.artist) rows.push({label:"ARTIST", node: <span style={valueStyle}>{tulip.artist}</span>});
+  if(tulip.color) rows.push({label:"COLOR", node: <span style={{...valueStyle,color:c,display:"flex",alignItems:"center",gap:8}}>{tulip.color.toUpperCase()} <span style={{display:"inline-block",width:12,height:12,background:c,border:"1px solid #1a4a1a",borderRadius:2,flexShrink:0}} /></span>});
+  if(tulip.epitaph) rows.push({label:"EPITAPH", node: <span style={{...valueStyle,fontStyle:"italic"}}>{`\u201C${tulip.epitaph}\u201D`}</span>});
+
+  return (
+    <div style={{fontFamily:"monospace",border:"1px solid #1a4a1a",background:"rgba(0,20,0,0.4)",padding:20,position:"relative"}}>
+      <span style={{position:"absolute",top:4,left:6,color:"#1a4a1a",fontSize:10}}>┌</span>
+      <span style={{position:"absolute",top:4,right:6,color:"#1a4a1a",fontSize:10}}>┐</span>
+      <span style={{position:"absolute",bottom:4,left:6,color:"#1a4a1a",fontSize:10}}>└</span>
+      <span style={{position:"absolute",bottom:4,right:6,color:"#1a4a1a",fontSize:10}}>┘</span>
+
+      <div style={{color:c,fontSize:11,letterSpacing:3,marginBottom:16,textShadow:`0 0 8px rgba(${rgb},0.4)`}}>
+        TULIP #{String(index).padStart(3,"0")} · {index+1} OF {total}
+      </div>
+      <div style={{height:1,background:"#1a4a1a",marginBottom:12}} />
+
+      {rows.map((row, ri) => (
+        <div key={row.label} style={{...rowStyle, borderBottom: ri === rows.length - 1 ? "none" : "1px solid #0a2a0a"}}>
+          <span style={labelStyle}>{row.label}</span>
+          {row.node}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface TulipDisplayProps {
+  tulip: Tulip | undefined;
+  index: number;
+  total: number;
+}
+
+function TulipDisplay({ tulip, index }: TulipDisplayProps): React.ReactElement {
+  const [fadeKey, setFadeKey] = useState<number>(0);
 
   useEffect(() => {
-    if (tulips.length === 0) return;
-    const cycle = (): void => {
-      setPhase("in");
-      timerRef.current = setTimeout(() => {
-        setPhase("hold");
-        timerRef.current = setTimeout(() => {
-          setPhase("out");
-          timerRef.current = setTimeout(() => {
-            setCurrent((c: number) => (c + 1) % tulips.length);
-          }, 1200);
-        }, 4000);
-      }, 1200);
-    };
-    cycle();
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [current, tulips.length]);
+    setFadeKey(k => k + 1);
+  }, [index]);
 
-  if (tulips.length === 0) return (
+  if (!tulip) return (
     <div style={{textAlign:"center",color:"#1a6a1a",padding:60,fontFamily:"monospace"}}>THE SOIL IS READY. NO TULIPS YET. <Cursor /></div>
   );
 
-  const t: Tulip = tulips[current];
-  const c: string = t.color || (t.id ? `#${t.id.slice(0,6)}` : DEFAULT_COLOR);
+  const c: string = tulip.color || (tulip.id ? `#${tulip.id.slice(0,6)}` : DEFAULT_COLOR);
   const rgb: string = hexToRgb(c);
-  const opacity: number = phase === "hold" ? 1 : 0;
-  const translateY: number = phase === "hold" ? 0 : phase === "in" ? 30 : -30;
 
   return (
-    <div style={{minHeight:500,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"monospace",position:"relative",overflow:"hidden"}}>
-      {/* Ambient glow */}
-      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:300,height:300,borderRadius:"50%",background:`radial-gradient(circle,rgba(${rgb},0.06) 0%,transparent 70%)`,transition:"background 1.2s ease",pointerEvents:"none"}} />
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"monospace",position:"relative",padding:"40px 20px",minHeight:280}}>
+      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:300,height:300,borderRadius:"50%",background:`radial-gradient(circle,rgba(${rgb},0.08) 0%,transparent 70%)`,transition:"background 0.8s ease",pointerEvents:"none"}} />
 
-      <div style={{transition:"opacity 1.2s ease, transform 1.2s ease",opacity,transform:`translateY(${translateY}px)`,textAlign:"center",zIndex:1,padding:"0 40px",maxWidth:500}}>
-        <div style={{color:`${c}60`,fontSize:11,letterSpacing:4,marginBottom:20}}>
-          TULIP #{String(current).padStart(3,"0")} · {current+1} OF {tulips.length}
-        </div>
+      <div key={fadeKey} style={{textAlign:"center",zIndex:1,animation:"tulipFadeIn 0.3s ease",width:"100%"}}>
+        <style>{`@keyframes tulipFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-        <pre style={{color:c,fontSize:18,lineHeight:1.3,margin:"0 auto 24px",display:"inline-block",textAlign:"left",textShadow:`0 0 20px rgba(${rgb},0.8)`,whiteSpace:"pre"}}>
-          {t.content || MINI_TULIP}
+        <pre style={{color:c,fontSize:20,lineHeight:1.3,margin:"0 auto 20px",display:"inline-block",textAlign:"left",textShadow:`0 0 16px rgba(${rgb},0.7)`,whiteSpace:"pre"}}>
+{tulip.content || MINI_TULIP}
         </pre>
 
-        <div style={{color:`${c}30`,fontSize:12,margin:"0 0 20px",letterSpacing:3}}>{"— ⸻ —"}</div>
-
-        {t.artist && (
-          <div style={{color:`${c}90`,fontSize:13,letterSpacing:2,marginBottom:12}}>{t.artist}</div>
-        )}
-
-        {t.epitaph && (
-          <div style={{color:c,fontSize:12,fontStyle:"italic",lineHeight:1.8,marginBottom:16,opacity:0.85}}>
-            "{t.epitaph}"
-          </div>
-        )}
-
-        <div style={{color:`${c}30`,fontSize:9,letterSpacing:1,marginTop:8}}>
-          <a href={`${ORDINALS_BASE}/inscription/${t.id}`} target="_blank" rel="noopener noreferrer" style={{color:`${c}30`,textDecoration:"none"}}>{t.id?.slice(0,16)}...</a>
-        </div>
-      </div>
-
-      <div style={{position:"absolute",bottom:20,display:"flex",gap:8}}>
-        {tulips.map((_: Tulip, i: number)=>(
-          <div key={i} onClick={()=>{if (timerRef.current) clearTimeout(timerRef.current);setCurrent(i);}} style={{width:i===current?20:6,height:6,background:i===current?(tulips[i].color||(tulips[i].id?`#${tulips[i].id.slice(0,6)}`:DEFAULT_COLOR)):"#1a4a1a",borderRadius:3,cursor:"pointer",transition:"all 0.4s ease"}} />
-        ))}
-      </div>
-
-      <div style={{position:"absolute",bottom:20,right:24,display:"flex",gap:8}}>
-        <button onClick={()=>{if (timerRef.current) clearTimeout(timerRef.current);setCurrent((c: number)=>(c-1+tulips.length)%tulips.length);}} style={{background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"4px 10px",cursor:"pointer",fontFamily:"monospace",fontSize:11}}>◀</button>
-        <button onClick={()=>{if (timerRef.current) clearTimeout(timerRef.current);setCurrent((c: number)=>(c+1)%tulips.length);}} style={{background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"4px 10px",cursor:"pointer",fontFamily:"monospace",fontSize:11}}>▶</button>
+        <div style={{color:`${c}30`,fontSize:12,letterSpacing:3}}>{"— ⸻ —"}</div>
       </div>
     </div>
+  );
+}
+
+function TimelineView({ tulips }: { tulips: Tulip[] }): React.ReactElement {
+  const [activeIndex, setActiveIndex] = useState<number>(0);
+
+  if (tulips.length === 0) return (
+    <div style={{textAlign:"center",color:"#1a6a1a",padding:60,fontFamily:"monospace"}}>THE SOIL IS READY. NO TULIPS YET. BE THE FIRST TO BLOOM. <Cursor /></div>
+  );
+
+  const activeTulip: Tulip | undefined = tulips[activeIndex];
+
+  return (
+    <>
+      <div style={{color:"#1a6a1a",fontSize:11,marginBottom:12,lineHeight:2,fontFamily:"monospace"}}>Total blooms: <span style={{color:"#39ff14"}}>{tulips.length}</span></div>
+      <div style={{border:"1px solid #0d3d0d",background:"rgba(0,255,65,0.02)"}}>
+        <GrowingField tulips={tulips} activeIndex={activeIndex} onActiveIndexChange={setActiveIndex} />
+      </div>
+      <div style={{marginTop:20}}>
+        <MetadataPanel tulip={activeTulip} index={activeIndex} total={tulips.length} />
+      </div>
+      <div style={{marginTop:20}}>
+        <TulipDisplay tulip={activeTulip} index={activeIndex} total={tulips.length} />
+      </div>
+    </>
   );
 }
 
@@ -990,7 +1106,7 @@ export default function TulipGarden(): React.ReactElement {
   const [error,setError] = useState<string | null>(null);
   const [lastRefresh,setLastRefresh] = useState<Date | null>(null);
   const [tab,setTab] = useState<string>("garden");
-  const [gardenView,setGardenView] = useState<string>("grid");
+  const [gardenView,setGardenView] = useState<string>("about");
   const [toolsSubTab,setToolsSubTab] = useState<string>("poll");
 
   const fetchTulips = useCallback(async(): Promise<void>=>{
@@ -1015,8 +1131,44 @@ export default function TulipGarden(): React.ReactElement {
               content=text.replace(/\r/g,"").replace(/[ \t]+$/gm,"").replace(/^\n+|\n+$/g,"");
             }
           }
-          return{id,content,artist,tulipNum,color,epitaph};
-        }catch{return{id,content:MINI_TULIP,artist:null,tulipNum:i,color:null,epitaph:null};}
+          // Also fetch CBOR metadata attached to the inscription (artist, color, epitaph, collection, etc.)
+          try{
+            const mr: Response=await fetch(`${ORDINALS_BASE}/r/metadata/${id}`);
+            if(mr.ok){
+              const raw = await mr.json();
+              // /r/metadata/ returns hex-encoded CBOR — decode it
+              const meta = (typeof raw === 'string') ? decodeCborHex(raw) : (typeof raw === 'object' && raw !== null ? raw as Record<string, unknown> : null);
+              if(meta){
+                if(!artist && meta.artist) artist=String(meta.artist);
+                if(!color && meta.color) color=String(meta.color);
+                if(!epitaph && meta.epitaph) epitaph=String(meta.epitaph);
+                if(meta.tulip_number != null) tulipNum=Number(meta.tulip_number);
+              }
+            }
+          }catch{}
+          // Fetch inscription properties (number, address, height, timestamp, etc.)
+          let inscription: InscriptionInfo | null = null;
+          try{
+            const ir: Response=await fetch(`${ORDINALS_BASE}/r/inscription/${id}`);
+            if(ir.ok){
+              const info = await ir.json();
+              inscription = {
+                number: info.number ?? null,
+                address: info.address ?? null,
+                content_type: info.content_type ?? null,
+                content_length: info.content_length ?? null,
+                height: info.height ?? null,
+                timestamp: info.timestamp ?? null,
+                fee: info.fee ?? null,
+                value: info.value ?? null,
+                sat: info.sat ?? null,
+                charms: Array.isArray(info.charms) ? info.charms : [],
+                output: info.output ?? null,
+              };
+            }
+          }catch{}
+          return{id,content,artist,tulipNum,color,epitaph,inscription};
+        }catch{return{id,content:MINI_TULIP,artist:null,tulipNum:i,color:null,epitaph:null,inscription:null};}
       };
       let allIds: string[]=[...(data.ids||[])];
       if(data.more){
@@ -1103,10 +1255,33 @@ export default function TulipGarden(): React.ReactElement {
         {tab==="garden"&&(
           <>
             <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
-              {([["grid","⊞ GARDEN"],["grow","⊳ GROWING FIELD"],["timeline","◈ TIMELINE"],["about","⧫ ABOUT"]] as [string, string][]).map(([k,label]: [string, string])=>(
+              {([["about","⧫ ABOUT"],["grid","⊞ GARDEN"],["grow","⊳ TIMELINE"]] as [string, string][]).map(([k,label]: [string, string])=>(
                 <button key={k} style={subBtn(gardenView===k)} onClick={()=>setGardenView(k)}>{label}</button>
               ))}
             </div>
+
+            {gardenView==="about"&&(
+              <div style={{maxWidth:700}}>
+                <div style={{marginBottom:32}}>
+                  <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHAT IS TULIP GARDEN?</div>
+                  <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
+                    Tulip Garden is a collaborative ASCII art collection on Bitcoin Ordinals, inspired by Casey Rodarmor{"'"}s <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>game.tulip.farm</a> — a roguelike dungeon crawler where <span style={{color:"#39ff14"}}>@</span> is the hero, and the entire world is made of ASCII text characters. A roguelike is a subgenre of RPG that takes inspiration from the original 1980 game <span style={{color:"#39ff14"}}>Rogue</span>, a high-fantasy role playing game where you navigate the {'"'}Dungeons of Doom{'"'} to retrieve the Amulet of Yendor. It was one of the first dungeon-crawling games ever made, where everything — the player, enemies, walls, treasure — was rendered as ASCII on a terminal screen. Tulip Garden carries that spirit onto Bitcoin.<br/><br/>
+                    Every tulip is permanently inscribed on-chain as a child of the <span style={{color:"#39ff14"}}>@</span> parent inscription. Anyone can plant a tulip — design your ASCII art, choose your color and epitaph — a final permadeath message — and inscribe it as a child of the root. Your tulip lives on Bitcoin forever. The site pulls children of <span style={{color:"#39ff14"}}>@</span> directly from the chain as they are inscribed and renders them in a dynamic timeline.<br/><br/>
+                    One of the goals of Tulip Garden is to teach how parent-child provenance works in practice — not just explain it, but give you the tools to do it yourself. The site also aggregates community thoughts on the evolving landscape of Ordinals marketplaces and tools, helping builders and collectors find what they need in one place.
+                  </div>
+                </div>
+
+                <div style={{marginBottom:32}}>
+                  <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHAT IS PARENT-CHILD PROVENANCE?</div>
+                  <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
+                    Bitcoin Ordinals supports parent-child relationships between inscriptions. A child inscription is permanently linked on-chain to its parent — this relationship is embedded in the Bitcoin transaction itself. This proves authenticity: if an inscription is not a child of <span style={{color:"#39ff14"}}>@</span>, it is not a real Tulip Garden tulip. No off-chain database, no API dependency, no trust required. The proof is in the chain.<br/><br/>
+                    Official docs: <a href="https://docs.ordinals.com" target="_blank" rel="noopener noreferrer" style={{color:"#39ff14"}}>docs.ordinals.com</a><br/><br/>
+                    Our parent: <a href={`https://ordinals.com/inscription/${PARENT_ID}`} target="_blank" rel="noopener noreferrer" style={{color:"#39ff14",wordBreak:"break-all"}}>{PARENT_ID}</a>
+                  </div>
+                </div>
+
+              </div>
+            )}
 
             {error&&<div style={{color:"#ff4444",fontSize:12,marginBottom:16,border:"1px solid #440000",padding:12}}>ERROR: {error}</div>}
 
@@ -1128,65 +1303,7 @@ export default function TulipGarden(): React.ReactElement {
                   </>
                 )}
                 {gardenView==="grow"&&(
-                  <>
-                    <div style={{color:"#1a6a1a",fontSize:11,marginBottom:20,lineHeight:2}}>Total blooms: <span style={{color:"#39ff14"}}>{tulips.length}</span></div>
-                    <div style={{border:"1px solid #0d3d0d",background:"rgba(0,255,65,0.02)",padding:"20px 0",overflowX:"auto"}}>
-                      <GrowingField tulips={tulips} />
-                    </div>
-                    <div style={{marginTop:20,color:"#1a6a1a",fontSize:11,lineHeight:2}}>
-                      <div>@ (root) → {PARENT_ID.slice(0,16)}...</div>
-                      {tulips.map((t: Tulip, i: number)=>(
-                        <div key={t.id} style={{paddingLeft:16}}>
-                          <span style={{color:t.color||(t.id?`#${t.id.slice(0,6)}`:DEFAULT_COLOR)}}>└──</span> tulip #{i} {t.artist?`[${t.artist}]`:""} →{" "}
-                          <a href={`https://ordinals.com/inscription/${t.id}`} target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>{t.id.slice(0,12)}...</a>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {gardenView==="timeline"&&<TimelineMode tulips={tulips} />}
-                {gardenView==="about"&&(
-                  <div style={{maxWidth:700}}>
-                    <div style={{marginBottom:32}}>
-                      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHAT IS TULIP GARDEN?</div>
-                      <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
-                        Tulip Garden is a collaborative ASCII art collection on Bitcoin Ordinals, inspired by Casey Rodarmor{"'"}s <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>game.tulip.farm</a> — an ASCII dungeon crawler built on Ordinals where <span style={{color:"#39ff14"}}>@</span> is the hero, and the entire world is made of text characters. The game takes direct inspiration from <span style={{color:"#39ff14"}}>Rogue</span> (1980), one of the first dungeon-crawling games ever made, where everything — the player, enemies, walls, treasure — was rendered as ASCII on a terminal screen. Tulip Garden carries that spirit onto Bitcoin.<br/><br/>
-                        Every tulip is permanently inscribed on-chain as a child of the <span style={{color:"#39ff14"}}>@</span> parent inscription. Anyone can plant a tulip — design your ASCII art, choose your color and epitaph, and inscribe it as a child of the root. Your tulip lives on Bitcoin forever.<br/><br/>
-                        The garden is dynamic — as new tulips are inscribed under the parent, they appear here automatically. The site pulls children of <span style={{color:"#39ff14"}}>@</span> directly from the chain and renders them in real time.<br/><br/>
-                        One of the goals of Tulip Garden is to teach how parent-child provenance works in practice — not just explain it, but give you the tools to do it yourself. The site also aggregates community thoughts on the evolving landscape of Ordinals marketplaces and tools, helping builders and collectors find what they need in one place.
-                      </div>
-                    </div>
-
-                    <div style={{marginBottom:32}}>
-                      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHAT IS PARENT-CHILD PROVENANCE?</div>
-                      <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
-                        Bitcoin Ordinals supports parent-child relationships between inscriptions. A child inscription is permanently linked on-chain to its parent — this relationship is embedded in the Bitcoin transaction itself and cannot be forged, deleted, or altered.<br/><br/>
-                        This proves authenticity: if an inscription is not a child of <span style={{color:"#39ff14"}}>@</span>, it is not a real Tulip Garden tulip. No off-chain database, no API dependency, no trust required. The chain is the proof.<br/><br/>
-                        This should be the standard for all on-chain collections.
-                      </div>
-                    </div>
-
-                    <div style={{marginBottom:32}}>
-                      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHAT IS A GALLERY?</div>
-                      <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
-                        From the Ordinals protocol: a gallery is a collection of inscriptions grouped under a parent. The parent inscription serves as the root and index of the entire collection. All children are provably linked.<br/><br/>
-                        View on ordinals.com:<br/>
-                        <span style={{color:"#1a8a1a"}}>ordinals.com/inscription/{PARENT_ID.slice(0,20)}...</span> — the parent<br/>
-                        <span style={{color:"#1a8a1a"}}>ordinals.com/children/{PARENT_ID.slice(0,20)}...</span> — all children<br/><br/>
-                        Our parent: <a href={`https://ordinals.com/inscription/${PARENT_ID}`} target="_blank" rel="noopener noreferrer" style={{color:"#39ff14",wordBreak:"break-all"}}>{PARENT_ID}</a>
-                      </div>
-                    </div>
-
-                    <div style={{marginBottom:32}}>
-                      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:12}}>// WHY PARENT-CHILD SHOULD BE THE STANDARD</div>
-                      <div style={{color:"#1a6a1a",fontSize:11,lineHeight:2.2,fontFamily:"monospace"}}>
-                        Permanent provenance on-chain beats any off-chain database. A parent-child link is inscribed in Bitcoin — it cannot be faked, cannot be deleted, cannot be changed. No server to shut down, no API to deprecate.<br/><br/>
-                        When Tragic Eden sunset its Bitcoin marketplace, collections that relied on its off-chain database to define membership were left stranded. No parent-child link meant no on-chain proof that an inscription belonged to a collection. The metadata lived on their servers — and when those servers stopped caring, so did the provenance.<br/><br/>
-                        Parent-child provenance removes that dependency. No platform can delist what the chain itself proves. The provenance lives where it should — on-chain, not on someone{"'"}s server.<br/><br/>
-                        Every collection on Ordinals should use parent-child provenance.
-                      </div>
-                    </div>
-                  </div>
+                  <TimelineView tulips={tulips} />
                 )}
               </>
             )}
