@@ -937,16 +937,29 @@ function MarketplacePoll(): React.ReactElement {
   const [comments,setComments] = useState<Comment[]>([]);
   const [commentText,setCommentText] = useState<string>("");
   const [commentName,setCommentName] = useState<string>("");
+  const [commentError,setCommentError] = useState<string>("");
+  const [isCommenting,setIsCommenting] = useState<boolean>(false);
   const [likedComments,setLikedComments] = useState<Record<string, boolean>>(()=>{try{return JSON.parse(localStorage.getItem("tg_comment_reactions")||"{}");} catch{return{};}});
   useEffect(()=>{fetch(`${API_BASE}/comments`).then(r=>r.json()).then(setComments).catch(()=>{});},[]);
   const addComment=(): void=>{
-    if(!commentText.trim())return;
-    fetch(`${API_BASE}/comments`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:commentName.trim()||null,text:commentText.trim()})})
-      .then(r=>r.json()).then((c: Comment)=>{setComments(prev=>[c,...prev]);setCommentText("");}).catch(()=>{});
+    setCommentError("");
+    const text=commentText.trim();
+    const name=commentName.trim();
+    if(!text){setCommentError("ERR: comment text required");return;}
+    if(text.length>500){setCommentError("ERR: comment too long (max 500)");return;}
+    if(name.length>50){setCommentError("ERR: name too long (max 50)");return;}
+    setIsCommenting(true);
+    fetch(`${API_BASE}/comments`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name||null,text})})
+      .then(r=>{if(!r.ok)return r.json().then((e:{error?:string})=>{throw new Error(e.error||"failed")});return r.json();})
+      .then((c: Comment)=>{setComments(prev=>[c,...prev]);setCommentText("");})
+      .catch((e: Error)=>setCommentError(`ERR: ${e.message}`))
+      .finally(()=>setIsCommenting(false));
   };
   const reactComment=(id: string,type: "like" | "dislike"): void=>{
     if(likedComments[`${id}_${type}`])return;
-    fetch(`${API_BASE}/comments/${id}/${type}`,{method:"POST"}).then(r=>r.json()).then((updated: Comment)=>{
+    fetch(`${API_BASE}/comments/${id}/${type}`,{method:"POST"}).then(r=>{
+      if(!r.ok)throw new Error("failed");return r.json();
+    }).then((updated: Comment)=>{
       setComments(prev=>prev.map(c=>c.id===updated.id?updated:c));
       const nr: Record<string, boolean>={...likedComments,[`${id}_${type}`]:true};
       setLikedComments(nr);
@@ -959,10 +972,25 @@ function MarketplacePoll(): React.ReactElement {
   const [submitDesc,setSubmitDesc] = useState<string>("");
   const [submitType,setSubmitType] = useState<string>("marketplace");
   const [submitted,setSubmitted] = useState<boolean>(false);
+  const [submitError,setSubmitError] = useState<string>("");
+  const [isSubmitting,setIsSubmitting] = useState<boolean>(false);
   const submitTool=(): void=>{
-    if(!submitName.trim()||!submitUrl.trim())return;
-    fetch(`${API_BASE}/submissions`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:submitName.trim(),url:submitUrl.trim(),desc:submitDesc.trim(),type:submitType})})
-      .then(()=>{setSubmitName("");setSubmitUrl("");setSubmitDesc("");setSubmitType("marketplace");setSubmitted(true);setTimeout(()=>setSubmitted(false),3000);}).catch(()=>{});
+    setSubmitError("");
+    const name=submitName.trim();
+    const url=submitUrl.trim();
+    const desc=submitDesc.trim();
+    if(!name){setSubmitError("ERR: name required");return;}
+    if(!url){setSubmitError("ERR: url required");return;}
+    if(!/^https?:\/\/.+/.test(url)){setSubmitError("ERR: url must start with http:// or https://");return;}
+    if(name.length>100){setSubmitError("ERR: name too long (max 100)");return;}
+    if(url.length>500){setSubmitError("ERR: url too long (max 500)");return;}
+    if(desc.length>300){setSubmitError("ERR: description too long (max 300)");return;}
+    setIsSubmitting(true);
+    fetch(`${API_BASE}/submissions`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,url,desc,type:submitType})})
+      .then(r=>{if(!r.ok)return r.json().then((e:{error?:string})=>{throw new Error(e.error||"failed")});return r.json();})
+      .then(()=>{setSubmitName("");setSubmitUrl("");setSubmitDesc("");setSubmitType("marketplace");setSubmitted(true);setTimeout(()=>setSubmitted(false),3000);})
+      .catch((e: Error)=>setSubmitError(`ERR: ${e.message}`))
+      .finally(()=>setIsSubmitting(false));
   };
 
   const inputStyle: React.CSSProperties={...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color:"#7fff7f",padding:"7px 10px",fontSize:11,width:"100%",outline:"none"};
@@ -1017,10 +1045,11 @@ function MarketplacePoll(): React.ReactElement {
           ))}
         </div>
         <div style={{display:"flex",gap:8,marginBottom:8}}>
-          <input value={commentName} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentName(e.target.value)} placeholder="name (optional)" style={{...inputStyle,width:"30%"}} />
-          <input value={commentText} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentText(e.target.value)} placeholder="leave a comment..." style={inputStyle} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>)=>{if(e.key==="Enter")addComment();}} />
-          <button onClick={addComment} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"7px 14px",cursor:"pointer",fontSize:10,letterSpacing:1,flexShrink:0}}>POST</button>
+          <input value={commentName} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentName(e.target.value)} placeholder="name (optional)" maxLength={50} style={{...inputStyle,width:"30%"}} />
+          <input value={commentText} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentText(e.target.value)} placeholder="leave a comment..." maxLength={500} style={inputStyle} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>)=>{if(e.key==="Enter")addComment();}} />
+          <button onClick={addComment} disabled={isCommenting} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"7px 14px",cursor:isCommenting?"default":"pointer",fontSize:10,letterSpacing:1,flexShrink:0,opacity:isCommenting?0.5:1}}>{isCommenting?"...":"POST"}</button>
         </div>
+        {commentError&&<div style={{color:"#ff4444",fontSize:10,fontFamily:"monospace",padding:"4px 8px",border:"1px solid #441a1a",background:"rgba(255,0,0,0.05)",marginBottom:8}}>{commentError}</div>}
       </div>
 
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
@@ -1030,16 +1059,17 @@ function MarketplacePoll(): React.ReactElement {
           <div style={{color:"#39ff14",fontSize:12,padding:20,border:"1px solid #1a4a1a",textAlign:"center",...mono}}>✓ Thank you! Your submission has been recorded.</div>
         ):(
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <input value={submitName} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setSubmitName(e.target.value)} placeholder="tool/marketplace name *" style={inputStyle} />
-            <input value={submitUrl} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setSubmitUrl(e.target.value)} placeholder="url *" style={inputStyle} />
-            <input value={submitDesc} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setSubmitDesc(e.target.value)} placeholder="short description" style={inputStyle} />
+            <input value={submitName} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setSubmitName(e.target.value)} placeholder="tool/marketplace name *" maxLength={100} style={inputStyle} />
+            <input value={submitUrl} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setSubmitUrl(e.target.value)} placeholder="url *" maxLength={500} style={inputStyle} />
+            <input value={submitDesc} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setSubmitDesc(e.target.value)} placeholder="short description" maxLength={300} style={inputStyle} />
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <span style={{color:"#1a6a1a",fontSize:10,...mono}}>TYPE:</span>
               {["marketplace","tool","other"].map((t: string)=>(
                 <button key={t} onClick={()=>setSubmitType(t)} style={{...mono,background:submitType===t?"rgba(57,255,20,0.1)":"transparent",border:`1px solid ${submitType===t?"#39ff14":"#1a4a1a"}`,color:submitType===t?"#39ff14":"#1a6a1a",padding:"4px 10px",cursor:"pointer",fontSize:10,letterSpacing:1}}>{t.toUpperCase()}</button>
               ))}
             </div>
-            <button onClick={submitTool} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"8px 14px",cursor:"pointer",fontSize:10,letterSpacing:1,alignSelf:"flex-start",marginTop:4}}>SUBMIT</button>
+            {submitError&&<div style={{color:"#ff4444",fontSize:10,fontFamily:"monospace",padding:"4px 8px",border:"1px solid #441a1a",background:"rgba(255,0,0,0.05)"}}>{submitError}</div>}
+            <button onClick={submitTool} disabled={isSubmitting} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"8px 14px",cursor:isSubmitting?"default":"pointer",fontSize:10,letterSpacing:1,alignSelf:"flex-start",marginTop:4,opacity:isSubmitting?0.5:1}}>{isSubmitting?"...":"SUBMIT"}</button>
           </div>
         )}
       </div>
