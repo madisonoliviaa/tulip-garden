@@ -677,6 +677,172 @@ async fn post_submission(
     }))
 }
 
+// --- Admin ---
+
+#[derive(Deserialize)]
+struct AdminQuery {
+    key: Option<String>,
+}
+
+#[derive(Serialize)]
+struct AdminData {
+    comments: Vec<Comment>,
+    submissions: Vec<Submission>,
+    poll_votes: HashMap<String, i64>,
+    poll_voters: Vec<PollVoter>,
+}
+
+#[derive(Serialize)]
+struct PollVoter {
+    ip: String,
+    choice: String,
+}
+
+fn check_admin_key(key: &Option<String>) -> Result<(), AppError> {
+    let admin_key = std::env::var("ADMIN_KEY").unwrap_or_else(|_| "tulip-admin-2026".to_string());
+    match key {
+        Some(k) if k == &admin_key => Ok(()),
+        _ => Err(AppError::BadRequest("invalid admin key".into())),
+    }
+}
+
+async fn admin_data(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<AdminQuery>,
+) -> Result<Json<AdminData>, AppError> {
+    check_admin_key(&query.key)?;
+
+    let conn = state
+        .db
+        .lock()
+        .map_err(|_| AppError::Internal("db lock failed".into()))?;
+
+    // Comments
+    let mut stmt = conn
+        .prepare("SELECT id, name, text, ts, likes, dislikes FROM comments ORDER BY ts DESC")
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let comments: Vec<Comment> = stmt
+        .query_map([], |row| {
+            Ok(Comment {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                text: row.get(2)?,
+                ts: row.get(3)?,
+                likes: row.get(4)?,
+                dislikes: row.get(5)?,
+            })
+        })
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .flatten()
+        .collect();
+
+    // Submissions
+    let mut stmt2 = conn
+        .prepare("SELECT id, name, url, desc, type, ts FROM submissions ORDER BY ts DESC")
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let submissions: Vec<Submission> = stmt2
+        .query_map([], |row| {
+            Ok(Submission {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                url: row.get(2)?,
+                desc: row.get(3)?,
+                kind: row.get(4)?,
+                ts: row.get(5)?,
+            })
+        })
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .flatten()
+        .collect();
+
+    // Poll votes
+    let poll_votes = get_all_votes(&conn);
+
+    // Poll voters
+    let mut stmt3 = conn
+        .prepare("SELECT ip, choice FROM poll_voters")
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let poll_voters: Vec<PollVoter> = stmt3
+        .query_map([], |row| {
+            Ok(PollVoter {
+                ip: row.get(0)?,
+                choice: row.get(1)?,
+            })
+        })
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .flatten()
+        .collect();
+
+    Ok(Json(AdminData {
+        comments,
+        submissions,
+        poll_votes,
+        poll_voters,
+    }))
+}
+
+#[derive(Deserialize)]
+struct AdminDeleteBody {
+    key: String,
+}
+
+async fn delete_comment(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(body): Json<AdminDeleteBody>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    check_admin_key(&Some(body.key))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|_| AppError::Internal("db lock failed".into()))?;
+    let rows = conn
+        .execute("DELETE FROM comments WHERE id = ?1", [id])
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    if rows == 0 {
+        return Err(AppError::NotFound("comment not found".into()));
+    }
+    // Clean up reactions too
+    let _ = conn.execute("DELETE FROM comment_reactions WHERE comment_id = ?1", [id]);
+    Ok(Json(serde_json::json!({"deleted": id})))
+}
+
+async fn delete_submission(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(body): Json<AdminDeleteBody>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    check_admin_key(&Some(body.key))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|_| AppError::Internal("db lock failed".into()))?;
+    let rows = conn
+        .execute("DELETE FROM submissions WHERE id = ?1", [id])
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    if rows == 0 {
+        return Err(AppError::NotFound("submission not found".into()));
+    }
+    Ok(Json(serde_json::json!({"deleted": id})))
+}
+
+async fn delete_poll_voter(
+    State(state): State<AppState>,
+    Json(body): Json<AdminDeleteBody>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    check_admin_key(&Some(body.key.clone()))?;
+    // Reset all poll data
+    let conn = state
+        .db
+        .lock()
+        .map_err(|_| AppError::Internal("db lock failed".into()))?;
+    conn.execute("DELETE FROM poll_voters", [])
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    conn.execute("DELETE FROM poll_votes", [])
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(Json(serde_json::json!({"status": "poll reset"})))
+}
+
 // --- Main ---
 
 #[tokio::main]
@@ -708,7 +874,7 @@ async fn main() {
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([Method::GET, Method::POST])
+        .allow_methods([Method::GET, Method::POST, Method::DELETE])
         .allow_headers(Any);
 
     let app = Router::new()
@@ -724,6 +890,10 @@ async fn main() {
             "/api/submissions",
             get(get_submissions).post(post_submission),
         )
+        .route("/api/admin", get(admin_data))
+        .route("/api/admin/comments/{id}", axum::routing::delete(delete_comment))
+        .route("/api/admin/submissions/{id}", axum::routing::delete(delete_submission))
+        .route("/api/admin/poll/reset", post(delete_poll_voter))
         .layer(cors)
         .with_state(state);
 
