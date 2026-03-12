@@ -1616,7 +1616,7 @@ export default function TulipGarden(): React.ReactElement {
           <span style={{whiteSpace:"nowrap"}}>PARENT: {PARENT_ID}</span>
           <span>ROOTED AT @ · INSPIRED BY <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#0d3d0d",textDecoration:"none"}}>GAME.TULIP.FARM</a> & ROGUE (1980)</span>
         </div>
-        <img src="/acc-logo.png" alt="Anyone Can Cook Productions" style={{width:72,height:72,borderRadius:"50%",opacity:0.7}} />
+        <img src="/acc-logo.png" alt="Anyone Can Cook Productions" style={{width:80,height:80,borderRadius:"50%",opacity:0.7}} />
       </div>
     </div>
   );
