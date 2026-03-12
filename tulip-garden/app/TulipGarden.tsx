@@ -934,7 +934,7 @@ function MarketplacePoll(): React.ReactElement {
       .finally(()=>setLoaded(true));
   },[]);
   const vote=(id: string): void=>{
-    if(userVote)return;
+    if(userVote===id)return;
     fetch(`${API_BASE}/poll/${encodeURIComponent(id)}`,{method:"POST"})
       .then(r=>r.json())
       .then((data: {votes:Record<string,number>;your_vote:string|null;status:string})=>{
@@ -1029,7 +1029,7 @@ function MarketplacePoll(): React.ReactElement {
           return (
             <div key={m.id} style={{border:`1px solid ${voted?"#39ff14":"#1a4a1a"}`,padding:"12px 14px",background:voted?"rgba(57,255,20,0.06)":"rgba(57,255,20,0.02)"}}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-                <button onClick={()=>vote(m.id)} disabled={!!userVote} style={{...mono,background:voted?"rgba(57,255,20,0.2)":"transparent",border:`1px solid ${voted?"#39ff14":"#1a4a1a"}`,color:voted?"#39ff14":"#1a6a1a",padding:"4px 10px",cursor:userVote?"default":"pointer",fontSize:10,letterSpacing:1,flexShrink:0}}>
+                <button onClick={()=>vote(m.id)} disabled={voted} style={{...mono,background:voted?"rgba(57,255,20,0.2)":"transparent",border:`1px solid ${voted?"#39ff14":"#1a4a1a"}`,color:voted?"#39ff14":"#1a6a1a",padding:"4px 10px",cursor:voted?"default":"pointer",fontSize:10,letterSpacing:1,flexShrink:0}}>
                   {voted?"✓ VOTED":"VOTE"}
                 </button>
                 <span style={{color:voted?"#39ff14":"#7fff7f",fontSize:12,...mono}}>{m.name}</span>
@@ -1042,7 +1042,7 @@ function MarketplacePoll(): React.ReactElement {
           );
         })}
       </div>
-      {userVote&&<button onClick={()=>{setUserVote(null);try{localStorage.removeItem(POLL_KEY);}catch{};fetch(`${API_BASE}/poll`).then(r=>r.json()).then(setVotes).catch(()=>{})}} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a4a1a",padding:"6px 12px",cursor:"pointer",fontSize:10,marginTop:12,letterSpacing:1}}>↺ CHANGE VOTE</button>}
+      {userVote&&<div style={{color:"#1a4a1a",fontSize:10,marginTop:8,...mono}}>click another option to change your vote</div>}
 
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:24}}>
         <AnalyticsPlaceholder />
