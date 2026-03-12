@@ -96,12 +96,11 @@ const MARKETPLACES: Marketplace[] = [
   { id: "ordinalswallet", name: "Ordinals Wallet", url: "https://ordinalswallet.com", type: "marketplace" },
   { id: "unisat", name: "UniSat", url: "https://unisat.io", type: "both" },
   { id: "gamma", name: "Gamma", url: "https://gamma.io", type: "both" },
-  { id: "trio", name: "Trio", url: "https://www.trio.xyz", type: "marketplace" },
+  { id: "trio", name: "Trio (Powered by OrdinalsBot)", url: "https://www.trio.xyz", type: "marketplace" },
   { id: "orddropz", name: "OrdDropz", url: "https://ord-dropz.xyz/secondary", type: "both" },
   { id: "satflow", name: "Satflow", url: "https://www.satflow.com", type: "marketplace" },
   { id: "ordzaar", name: "Ordzaar", url: "https://ordzaar.com", type: "both" },
   { id: "magisat", name: "Magisat", url: "https://magisat.io/collections", type: "marketplace" },
-  { id: "ordinalsbot", name: "OrdinalsBot", url: "https://ordinalsbot.com/inscribe", type: "tool" },
   { id: "ord", name: "ord CLI", url: "https://github.com/ordinals/ord/releases/tag/0.27.0", type: "tool" },
 ];
 
