@@ -92,7 +92,7 @@ const MARKETPLACES: Marketplace[] = [
   { id: "ordzaar", name: "Ordzaar", url: "https://ordzaar.com", type: "both" },
   { id: "magisat", name: "Magisat", url: "https://magisat.io/collections", type: "marketplace" },
   { id: "ordinalsbot", name: "OrdinalsBot", url: "https://ordinalsbot.com/inscribe", type: "tool" },
-  { id: "ord", name: "ord CLI", url: "https://github.com/ordinals/ord", type: "tool" },
+  { id: "ord", name: "ord CLI", url: "https://github.com/ordinals/ord/releases/tag/0.27.0", type: "tool" },
 ];
 
 const POLL_KEY: string = "tulip_garden_poll_vote";
@@ -1037,6 +1037,10 @@ function MarketplacePoll(): React.ReactElement {
         <AnalyticsPlaceholder />
       </div>
 
+      <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:24}}>
+        <NewsSection />
+      </div>
+
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
         <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ COMMENTS || SUGGESTIONS</div>
         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
@@ -1143,6 +1147,51 @@ function AnalyticsPlaceholder(): React.ReactElement {
         <div style={{color:"#0d3d0d",fontSize:10,marginTop:6,fontFamily:"monospace"}}>live on-chain analytics · marketplace volume · inscription trends</div>
       </div>
       <div style={{height:30}} />
+    </div>
+  );
+}
+
+function NewsSection(): React.ReactElement {
+  const mono: React.CSSProperties={fontFamily:"monospace"};
+  return (
+    <div>
+      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ NEWS</div>
+      <div style={{color:"#0d3d0d",fontSize:9,letterSpacing:1,marginBottom:20,fontStyle:"italic"}}>*latest updates from the ordinals ecosystem*</div>
+
+      <div style={{border:"1px solid #1a4a1a",padding:"16px",background:"rgba(57,255,20,0.02)",marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <span style={{color:"#39ff14",fontSize:11,letterSpacing:1,...mono}}>ORD v0.27.0 RELEASED</span>
+          <span style={{color:"#0d3d0d",fontSize:9,...mono}}>MARCH 2026</span>
+        </div>
+        <a href="https://github.com/ordinals/ord/releases/tag/0.27.0" target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",fontSize:10,textDecoration:"none",display:"block",marginBottom:14,...mono}}>↗ github.com/ordinals/ord/releases/tag/0.27.0</a>
+
+        <div style={{marginBottom:12}}>
+          <div style={{color:"#7fff7f",fontSize:10,letterSpacing:1,marginBottom:6,...mono}}>ADDED</div>
+          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
+            · <span style={{color:"#39ff14"}}>/missing endpoint</span> — Bulk check whether inscriptions exist without fetching each one individually. Useful for indexers and marketplaces that need to verify large sets of inscription IDs quickly. <span style={{color:"#0d3d0d"}}>(#4493 by casey)</span>
+          </div>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{color:"#7fff7f",fontSize:10,letterSpacing:1,marginBottom:6,...mono}}>CHANGED</div>
+          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
+            · <span style={{color:"#39ff14"}}>Gallery TXID packing</span> — Gallery inscriptions can now optionally compress their transaction IDs into a tighter format, reducing on-chain data size and saving sats on fees when inscribing galleries. <span style={{color:"#0d3d0d"}}>(#4490 by casey)</span>
+          </div>
+        </div>
+
+        <div>
+          <div style={{color:"#7fff7f",fontSize:10,letterSpacing:1,marginBottom:6,...mono}}>MISC</div>
+          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
+            · <span style={{color:"#39ff14"}}>Reduced test thread contention</span> — Internal improvement that makes the ord test suite run faster and more reliably for contributors. <span style={{color:"#0d3d0d"}}>(#4495 by casey)</span>
+          </div>
+          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
+            · <span style={{color:"#39ff14"}}>Hidden inscriptions excluded from /collections and /galleries</span> — Inscriptions flagged as hidden (e.g. cursed or unbound) no longer appear in collection and gallery listings, keeping those views clean. <span style={{color:"#0d3d0d"}}>(#4488 by casey)</span>
+          </div>
+          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
+            · <span style={{color:"#39ff14"}}>Allow missing current index when swapping</span> — Fixes an edge case where swapping sat positions would fail if the current index hadn&apos;t been fully built yet. Makes reindexing more resilient. <span style={{color:"#0d3d0d"}}>(#4487 by casey)</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
