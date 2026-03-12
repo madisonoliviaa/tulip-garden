@@ -1316,7 +1316,7 @@ export default function TulipGarden(): React.ReactElement {
       </div>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 24px",background:"#00060a",borderBottom:"1px solid #0d3d0d",fontSize:11,color:"#1a6a1a",letterSpacing:1,flexWrap:"wrap",gap:8}}>
-        <span>Aggregates ordinals marketplaces and tools, helping builders and collectors find what they need in one place.</span>
+        <span>Ordinals Tools and Marketplace aggregator, helping builders and collectors find what they need in one place.</span>
         <span>{lastRefresh?`LAST SYNC: ${lastRefresh.toLocaleTimeString()}`:"SYNCING..."} · AUTO-REFRESH: 30s</span>
         <span style={{fontSize:11,color:"#1a6a1a"}}>{loading?"SYNCING...":`${tulips.length} TULIP${tulips.length!==1?"S":""}`}</span>
       </div>
