@@ -1310,13 +1310,13 @@ export default function TulipGarden(): React.ReactElement {
         <pre style={{fontSize:5,lineHeight:1.1,color:"#39ff14",textShadow:"0 0 12px rgba(57,255,20,0.4)",whiteSpace:"pre",overflow:"hidden",marginBottom:16}}>{HEADER_ART}</pre>
         <div style={{display:"flex",gap:24,alignItems:"center",flexWrap:"wrap"}}>
           <div style={{fontSize:11,color:"#1a8a1a",letterSpacing:1}}>
-            Aggregates ordinals marketplaces and tools, helping builders and collectors find what they need in one place.
+            A COLLABORATIVE ASCII GARDEN ON BITCOIN · ROOTED AT <span style={{color:"#39ff14"}}>@</span> · INSPIRED BY <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>GAME.TULIP.FARM</a>
           </div>
         </div>
       </div>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 24px",background:"#00060a",borderBottom:"1px solid #0d3d0d",fontSize:11,color:"#1a6a1a",letterSpacing:1,flexWrap:"wrap",gap:8}}>
-        <span>A COLLABORATIVE ASCII GARDEN ON BITCOIN · ROOTED AT <span style={{color:"#39ff14"}}>@</span> · INSPIRED BY <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>GAME.TULIP.FARM</a> & ROGUE (1980)</span>
+        <span>Aggregates ordinals marketplaces and tools, helping builders and collectors find what they need in one place.</span>
         <span>{lastRefresh?`LAST SYNC: ${lastRefresh.toLocaleTimeString()}`:"SYNCING..."} · AUTO-REFRESH: 30s</span>
         <span style={{fontSize:11,color:"#1a6a1a"}}>{loading?"SYNCING...":`${tulips.length} TULIP${tulips.length!==1?"S":""}`}</span>
       </div>
