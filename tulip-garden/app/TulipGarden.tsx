@@ -1513,8 +1513,9 @@ export default function TulipGarden(): React.ReactElement {
                   <div style={{color:"#1a8a1a",fontSize:11,lineHeight:2.4}}>
                     ① ASCII .txt files only<br/>
                     ② Spaces not tabs<br/>
-                    ③ collection: <span style={{color:"#39ff14"}}>"Tulip Garden"</span><br/>
-                    ④ color + epitaph optional but permanent
+                    ③ .txt and .json must share the same name (e.g. <span style={{color:"#39ff14"}}>tulip1.txt</span> + <span style={{color:"#39ff14"}}>tulip1.json</span>)<br/>
+                    ④ collection: <span style={{color:"#39ff14"}}>"Tulip Garden"</span><br/>
+                    ⑤ color + epitaph optional but permanent
                   </div>
                 </div>
                 <div style={{marginBottom:24}}>
