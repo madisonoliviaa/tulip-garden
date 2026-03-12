@@ -1317,7 +1317,6 @@ export default function TulipGarden(): React.ReactElement {
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 24px",background:"#00060a",borderBottom:"1px solid #0d3d0d",fontSize:11,color:"#1a6a1a",letterSpacing:1,flexWrap:"wrap",gap:8}}>
         <span>Ordinals Tools and Marketplace aggregator, helping builders and collectors find what they need in one place.</span>
-        <span style={{fontSize:11,color:"#1a6a1a"}}>{loading?"SYNCING...":`${tulips.length} TULIP${tulips.length!==1?"S":""}`} · {lastRefresh?`LAST SYNC: ${lastRefresh.toLocaleTimeString()}`:"SYNCING..."}</span>
       </div>
 
       <div style={{display:"flex",borderBottom:"1px solid #0d3d0d",background:"#00060b",flexWrap:"wrap"}}>
@@ -1326,6 +1325,7 @@ export default function TulipGarden(): React.ReactElement {
         ))}
         <a href={`https://ordinals.com/inscription/${PARENT_ID}`} target="_blank" rel="noopener noreferrer"
           style={{...navBtn(false),textDecoration:"none",display:"flex",alignItems:"center"}}>↗ ORDINALS.COM</a>
+        <span style={{marginLeft:"auto",padding:"10px 16px",fontSize:11,color:"#1a6a1a",letterSpacing:1}}>{loading?"SYNCING...":`${tulips.length} TULIP${tulips.length!==1?"S":""}`} · {lastRefresh?`LAST SYNC: ${lastRefresh.toLocaleTimeString()}`:"SYNCING..."}</span>
       </div>
 
       <div style={{padding:"24px",maxWidth:1200,margin:"0 auto"}}>
