@@ -1168,14 +1168,14 @@ function NewsSection(): React.ReactElement {
         <div style={{marginBottom:12}}>
           <div style={{color:"#7fff7f",fontSize:10,letterSpacing:1,marginBottom:6,...mono}}>ADDED</div>
           <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
-            · <span style={{color:"#39ff14"}}>/missing endpoint</span> — Bulk check whether inscriptions exist without fetching each one individually. Useful for indexers and marketplaces that need to verify large sets of inscription IDs quickly. <span style={{color:"#0d3d0d"}}>(#4493 by casey)</span>
+            · <span style={{color:"#39ff14"}}>/missing endpoint</span> — Bulk check for missing gallery items when inscribing. Previously each gallery item was checked one-by-one — this makes inscribing large galleries much faster. <span style={{color:"#0d3d0d"}}>(#4493 by casey)</span>
           </div>
         </div>
 
         <div style={{marginBottom:12}}>
           <div style={{color:"#7fff7f",fontSize:10,letterSpacing:1,marginBottom:6,...mono}}>CHANGED</div>
           <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
-            · <span style={{color:"#39ff14"}}>Gallery TXID packing</span> — Gallery inscriptions can now optionally compress their transaction IDs into a tighter format, reducing on-chain data size and saving sats on fees when inscribing galleries. <span style={{color:"#0d3d0d"}}>(#4490 by casey)</span>
+            · <span style={{color:"#39ff14"}}>Gallery TXID packing</span> — New way of packing gallery item inscription ID TXIDs makes them much more compressible. This brings large galleries (e.g. 10k items) below the 400,000 byte standardness limit, so they can be inscribed in a single normal transaction. <span style={{color:"#0d3d0d"}}>(#4490 by casey)</span>
           </div>
         </div>
 
