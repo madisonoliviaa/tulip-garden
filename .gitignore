@@ -1,3 +1,4 @@
 server/target/
 server/tulip_garden.db
 .claude/
+API_KEYS.md

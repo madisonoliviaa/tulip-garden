@@ -30,6 +30,7 @@ interface Marketplace {
   id: string;
   name: string;
   url: string;
+  type: "marketplace" | "tool" | "both";
 }
 
 interface Comment {
@@ -82,11 +83,16 @@ const MINI_TULIP: string = `   _\n  (v)\n   |\n  \\|/`;
 const DEFAULT_TULIP: string = `   _\n  (v)\n   |\n  \\|/`;
 
 const MARKETPLACES: Marketplace[] = [
-  { id: "ordinalsbot", name: "OrdinalsBot", url: "https://ordinalsbot.com" },
-  { id: "unisat", name: "UniSat", url: "https://unisat.io/inscribe" },
-  { id: "gamma", name: "Gamma.io", url: "https://gamma.io/inscribe" },
-  { id: "orddropz", name: "OrdDropz", url: "https://ord-dropz.xyz" },
-  { id: "ord", name: "ord CLI", url: "https://github.com/ordinals/ord" },
+  { id: "ordinalswallet", name: "Ordinals Wallet", url: "https://ordinalswallet.com", type: "marketplace" },
+  { id: "unisat", name: "UniSat", url: "https://unisat.io", type: "both" },
+  { id: "gamma", name: "Gamma", url: "https://gamma.io", type: "both" },
+  { id: "trio", name: "Trio", url: "https://www.trio.xyz", type: "marketplace" },
+  { id: "orddropz", name: "OrdDropz", url: "https://ord-dropz.xyz/secondary", type: "both" },
+  { id: "satflow", name: "Satflow", url: "https://www.satflow.com", type: "marketplace" },
+  { id: "ordzaar", name: "Ordzaar", url: "https://ordzaar.com", type: "both" },
+  { id: "magisat", name: "Magisat", url: "https://magisat.io/collections", type: "marketplace" },
+  { id: "ordinalsbot", name: "OrdinalsBot", url: "https://ordinalsbot.com/inscribe", type: "tool" },
+  { id: "ord", name: "ord CLI", url: "https://github.com/ordinals/ord", type: "tool" },
 ];
 
 const POLL_KEY: string = "tulip_garden_poll_vote";
@@ -997,13 +1003,14 @@ function MarketplacePoll(): React.ReactElement {
 
   return (
     <div style={{marginBottom:32}}>
-      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:8}}>⬡ POLL — WHICH TOOL DO YOU PREFER?</div>
+      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ POLL — WEEKLY MARKETPLACE SENTIMENT</div>
+      <div style={{color:"#0d3d0d",fontSize:9,letterSpacing:1,marginBottom:12,fontStyle:"italic"}}>*results posted every thursday*</div>
       <div style={{color:"#1a6a1a",fontSize:11,marginBottom:20,lineHeight:1.8}}>
         {total>0?`${total} vote${total!==1?"s":""} cast.`:"Be the first to vote."}
         {userVote&&<span style={{color:"#7fff7f"}}> You voted for {MARKETPLACES.find(m=>m.id===userVote)?.name}.</span>}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {MARKETPLACES.map((m: Marketplace)=>{
+        {MARKETPLACES.filter(m=>m.type!=="tool").map((m: Marketplace)=>{
           const count: number=votes[m.id]||0;
           const pct: number=total>0?Math.round((count/total)*100):0;
           const barWidth: number=total>0?(count/maxVotes)*100:0;
@@ -1026,8 +1033,12 @@ function MarketplacePoll(): React.ReactElement {
       </div>
       {userVote&&<button onClick={()=>{setUserVote(null);try{localStorage.removeItem(POLL_KEY);}catch{};fetch(`${API_BASE}/poll`).then(r=>r.json()).then(setVotes).catch(()=>{})}} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a4a1a",padding:"6px 12px",cursor:"pointer",fontSize:10,marginTop:12,letterSpacing:1}}>↺ CHANGE VOTE</button>}
 
+      <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:24}}>
+        <AnalyticsPlaceholder />
+      </div>
+
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
-        <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ COMMENTS</div>
+        <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ COMMENTS || SUGGESTIONS</div>
         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
           {comments.length===0&&<div style={{color:"#1a4a1a",fontSize:11,...mono}}>No comments yet. Be the first.</div>}
           {comments.map((c: Comment, i: number)=>(
@@ -1079,18 +1090,59 @@ function MarketplacePoll(): React.ReactElement {
 
 function MarketplaceDirectory(): React.ReactElement {
   const mono: React.CSSProperties={fontFamily:"monospace"};
-  const marketplaces: Marketplace[]=MARKETPLACES.filter(m=>m.id!=="ord");
+  const mkts: Marketplace[]=MARKETPLACES.filter(m=>m.type==="marketplace");
+  const tools: Marketplace[]=MARKETPLACES.filter(m=>m.type==="tool");
+  const both: Marketplace[]=MARKETPLACES.filter(m=>m.type==="both");
+  const linkStyle: React.CSSProperties={color:"#7fff7f",fontSize:12,textDecoration:"none",border:"1px solid #1a4a1a",padding:"10px 14px",background:"rgba(57,255,20,0.02)",display:"block",...mono};
+  const sectionTitle=(text: string): React.ReactElement=><div style={{color:"#1a8a1a",fontSize:10,letterSpacing:2,marginBottom:8,marginTop:24}}>{text}</div>;
   return (
     <div>
-      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ MARKETPLACES</div>
+      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:8}}>⬡ MARKETPLACE / TOOLS LINKS</div>
+      {sectionTitle("// MARKETPLACES")}
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {marketplaces.map((m: Marketplace)=>(
-          <a key={m.id} href={m.url} target="_blank" rel="noopener noreferrer" style={{color:"#7fff7f",fontSize:12,textDecoration:"none",border:"1px solid #1a4a1a",padding:"10px 14px",background:"rgba(57,255,20,0.02)",display:"block",...mono}}>
-            → {m.name}
-          </a>
-        ))}
+        {mkts.map((m: Marketplace)=>(<a key={m.id} href={m.url} target="_blank" rel="noopener noreferrer" style={linkStyle}>→ {m.name}</a>))}
       </div>
-      <div style={{color:"#1a4a1a",fontSize:10,marginTop:16,...mono}}>More tools coming soon.</div>
+      {sectionTitle("// TOOLS")}
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {tools.map((m: Marketplace)=>(<a key={m.id} href={m.url} target="_blank" rel="noopener noreferrer" style={linkStyle}>→ {m.name}</a>))}
+      </div>
+      {sectionTitle("// BOTH (MARKETPLACE + TOOL)")}
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {both.map((m: Marketplace)=>(<a key={m.id} href={m.url} target="_blank" rel="noopener noreferrer" style={linkStyle}>→ {m.name}</a>))}
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsPlaceholder(): React.ReactElement {
+  const bars = [
+    {label:"MON",h:35},{label:"TUE",h:52},{label:"WED",h:44},{label:"THU",h:68},{label:"FRI",h:61},{label:"SAT",h:38},{label:"SUN",h:29},
+    {label:"MON",h:45},{label:"TUE",h:58},{label:"WED",h:72},{label:"THU",h:55},{label:"FRI",h:40},{label:"SAT",h:33},{label:"SUN",h:48},
+  ];
+  return (
+    <div>
+      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ ANALYTICS — ON-CHAIN DATA</div>
+      <div style={{color:"#0d3d0d",fontSize:9,letterSpacing:1,marginBottom:20,fontStyle:"italic"}}>*powered by dune analytics*</div>
+      <div style={{position:"relative",border:"1px solid #0d2d0d",padding:"24px 16px 16px",background:"rgba(0,0,0,0.2)",opacity:0.4,filter:"blur(0.5px)"}}>
+        <div style={{color:"#1a4a1a",fontSize:9,letterSpacing:1,marginBottom:12}}>DAILY INSCRIPTION VOLUME (BTC)</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:3,height:90,marginBottom:8}}>
+          {bars.map((b,i)=>(
+            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div style={{width:"100%",height:b.h,background:"linear-gradient(to top, #0d3d0d, #1a6a1a)",borderTop:"1px solid #1a4a1a"}} />
+              <div style={{fontSize:6,color:"#0d3d0d",letterSpacing:0.5}}>{b.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",borderTop:"1px solid #0d2d0d",paddingTop:8,fontSize:8,color:"#0d3d0d"}}>
+          <span>↳ 14D RANGE</span>
+          <span>AVG: 0.00 BTC</span>
+        </div>
+      </div>
+      <div style={{textAlign:"center",marginTop:-60,position:"relative",zIndex:2}}>
+        <div style={{color:"#1a6a1a",fontSize:14,letterSpacing:3,fontFamily:"monospace"}}>⬡ COMING SOON</div>
+        <div style={{color:"#0d3d0d",fontSize:10,marginTop:6,fontFamily:"monospace"}}>live on-chain analytics · marketplace volume · inscription trends</div>
+      </div>
+      <div style={{height:30}} />
     </div>
   );
 }
@@ -1135,7 +1187,7 @@ export default function TulipGarden(): React.ReactElement {
   const [loading,setLoading] = useState<boolean>(true);
   const [error,setError] = useState<string | null>(null);
   const [lastRefresh,setLastRefresh] = useState<Date | null>(null);
-  const [tab,setTab] = useState<string>("garden");
+  const [tab,setTab] = useState<string>("tools");
   const [gardenView,setGardenView] = useState<string>("about");
   const [toolsSubTab,setToolsSubTab] = useState<string>("poll");
 
@@ -1266,14 +1318,11 @@ export default function TulipGarden(): React.ReactElement {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 24px",background:"#00060a",borderBottom:"1px solid #0d3d0d",fontSize:11,color:"#1a6a1a",letterSpacing:1,flexWrap:"wrap",gap:8}}>
         <span>ORD://TULIP.GARDEN · PARENT: {PARENT_ID.slice(0,12)}...{PARENT_ID.slice(-8)}</span>
         <span>{lastRefresh?`LAST SYNC: ${lastRefresh.toLocaleTimeString()}`:"SYNCING..."} · AUTO-REFRESH: 30s</span>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <span style={{fontSize:11,color:"#1a6a1a"}}>{loading?"SYNCING...":`${tulips.length} TULIP${tulips.length!==1?"S":""}`}</span>
-          <button onClick={fetchTulips} style={{background:"transparent",border:"1px solid #39ff14",color:"#39ff14",padding:"8px 16px",cursor:"pointer",fontFamily:"monospace",fontSize:11,letterSpacing:2}}>↺ REFRESH</button>
-        </div>
+        <span style={{fontSize:11,color:"#1a6a1a"}}>{loading?"SYNCING...":`${tulips.length} TULIP${tulips.length!==1?"S":""}`}</span>
       </div>
 
       <div style={{display:"flex",borderBottom:"1px solid #0d3d0d",background:"#00060b",flexWrap:"wrap"}}>
-        {([["garden","🌷 GARDEN"],["plant","✦ PLANT A TULIP"],["tools","⬡ TOOLS"]] as [string, string][]).map(([k,label]: [string, string])=>(
+        {([["tools","⬡ TOOLS"],["garden","🌷 GARDEN"],["plant","✦ PLANT A TULIP"]] as [string, string][]).map(([k,label]: [string, string])=>(
           <button key={k} style={navBtn(tab===k)} onClick={()=>setTab(k)}>{label}</button>
         ))}
         <a href={`https://ordinals.com/inscription/${PARENT_ID}`} target="_blank" rel="noopener noreferrer"
@@ -1380,7 +1429,7 @@ export default function TulipGarden(): React.ReactElement {
           <>
             <div style={{color:"#1a8a1a",fontSize:11,letterSpacing:3,marginBottom:20,borderBottom:"1px solid #0d3d0d",paddingBottom:8}}>// TOOLS & MARKETPLACES</div>
             <div style={{display:"flex",gap:8,marginBottom:28,flexWrap:"wrap"}}>
-              {([["poll","⬡ COMMUNITY DISCOURSE"],["directory","⬡ MARKETPLACES"],["ord","⬡ ORD CLI"]] as [string, string][]).map(([k,label]: [string, string])=>(
+              {([["poll","⬡ SENTIMENT POLL"],["directory","⬡ LINKS"],["ord","⬡ ORD CLI"]] as [string, string][]).map(([k,label]: [string, string])=>(
                 <button key={k} style={subBtn(toolsSubTab===k)} onClick={()=>setToolsSubTab(k)}>{label}</button>
               ))}
             </div>
