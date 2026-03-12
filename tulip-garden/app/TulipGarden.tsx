@@ -1093,14 +1093,14 @@ function MarketplacePoll(): React.ReactElement {
     <div style={{marginBottom:32}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4,flexWrap:"wrap",gap:8}}>
         <div style={{color:"#39ff14",fontSize:12,letterSpacing:2}}>⬡ POLL — WEEKLY MARKETPLACE SENTIMENT</div>
-        <div style={{border:"1px solid #39ff1440",padding:"10px 20px",background:"rgba(57,255,20,0.04)",borderRadius:2,textAlign:"center",boxShadow:"0 0 12px rgba(57,255,20,0.08), inset 0 0 8px rgba(57,255,20,0.03)",marginRight:40}}>
-          <div style={{color:"#39ff14",fontSize:9,letterSpacing:3,...mono,marginBottom:6,opacity:0.6}}>★ MARKETPLACE OF THE WEEK ★</div>
+        <div style={{border:"1px solid #39ff1440",padding:"12px 24px",background:"rgba(57,255,20,0.04)",borderRadius:2,textAlign:"center",boxShadow:"0 0 12px rgba(57,255,20,0.08), inset 0 0 8px rgba(57,255,20,0.03)",marginRight:60}}>
+          <div style={{color:"#39ff14",fontSize:10,letterSpacing:3,...mono,marginBottom:6,opacity:0.6}}>★ MARKETPLACE OF THE WEEK ★</div>
           {(()=>{
-            if(total===0)return <div style={{color:"#1a4a1a",fontSize:11,...mono}}>voting in progress...</div>;
+            if(total===0)return <div style={{color:"#1a4a1a",fontSize:12,...mono}}>voting in progress...</div>;
             const sorted=MARKETPLACES.filter(m=>m.type!=="tool").map(m=>({...m,count:votes[m.id]||0})).sort((a,b)=>b.count-a.count);
             const winner=sorted[0];
-            if(!winner||winner.count===0)return <div style={{color:"#1a4a1a",fontSize:11,...mono}}>voting in progress...</div>;
-            return <div style={{color:"#39ff14",fontSize:15,fontWeight:"bold",...mono,textShadow:"0 0 12px rgba(57,255,20,0.7), 0 0 24px rgba(57,255,20,0.3)",letterSpacing:2}}>{winner.name.toUpperCase()}</div>;
+            if(!winner||winner.count===0)return <div style={{color:"#1a4a1a",fontSize:12,...mono}}>voting in progress...</div>;
+            return <div style={{color:"#39ff14",fontSize:17,fontWeight:"bold",...mono,textShadow:"0 0 12px rgba(57,255,20,0.7), 0 0 24px rgba(57,255,20,0.3)",letterSpacing:2}}>{winner.name.toUpperCase()}</div>;
           })()}
         </div>
       </div>
