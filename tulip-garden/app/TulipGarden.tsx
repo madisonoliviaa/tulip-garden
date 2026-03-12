@@ -1441,7 +1441,7 @@ export default function TulipGarden(): React.ReactElement {
       </div>
 
       <div style={{borderTop:"1px solid #0d3d0d",padding:"16px 24px",display:"flex",justifyContent:"space-between",fontSize:10,color:"#0d3d0d",letterSpacing:1,flexWrap:"wrap",gap:8}}>
-        <span>TULIP GARDEN · BITCOIN ORDINALS · <span style={{whiteSpace:"nowrap"}}>PARENT: {PARENT_ID}</span></span>
+        <span>TULIP GARDEN · BITCOIN ORDINALS <span style={{whiteSpace:"nowrap"}}>PARENT: {PARENT_ID}</span></span>
         <span>ROOTED AT @ · INSPIRED BY <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#0d3d0d",textDecoration:"none"}}>GAME.TULIP.FARM</a> & ROGUE (1980)</span>
       </div>
     </div>
