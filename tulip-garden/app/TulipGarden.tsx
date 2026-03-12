@@ -1277,7 +1277,17 @@ function SimpleMarkdown({content}:{content:string}): React.ReactElement {
 function NewsSection({posts,limit}:{posts:NewsPost[];limit?:number}): React.ReactElement {
   const mono: React.CSSProperties={fontFamily:"monospace"};
   const displayed=limit?posts.slice(0,limit):posts;
-  const formatMonth=(ts:number):string=>{const d=new Date(ts);return `${d.toLocaleString("default",{month:"long"}).toUpperCase()} ${d.getFullYear()}`;};
+  const formatWeek=(ts:number):string=>{
+    const d=new Date(ts);
+    const year=d.getFullYear();
+    const dow=d.getDay();
+    const monday=new Date(d);monday.setDate(d.getDate()-(dow===0?6:dow-1));
+    const sunday=new Date(monday);sunday.setDate(monday.getDate()+6);
+    const mStart=monday.toLocaleString("default",{month:"short"}).toUpperCase();
+    const mEnd=sunday.toLocaleString("default",{month:"short"}).toUpperCase();
+    if(mStart===mEnd)return `${mStart} ${monday.getDate()}-${sunday.getDate()}, ${year}`;
+    return `${mStart} ${monday.getDate()} - ${mEnd} ${sunday.getDate()}, ${year}`;
+  };
   if(displayed.length===0){
     return (
       <div>
@@ -1294,7 +1304,7 @@ function NewsSection({posts,limit}:{posts:NewsPost[];limit?:number}): React.Reac
         <div key={post.id} style={{border:"1px solid #1a4a1a",padding:"16px",background:"rgba(57,255,20,0.02)",marginBottom:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <span style={{color:"#39ff14",fontSize:11,letterSpacing:1,...mono}}>{post.title}</span>
-            <span style={{color:"#0d3d0d",fontSize:9,...mono}}>{formatMonth(post.ts)}</span>
+            <span style={{color:"#1a4a1a",fontSize:9,...mono,flexShrink:0}}>{formatWeek(post.ts)}</span>
           </div>
           {post.link&&<a href={post.link} target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",fontSize:10,textDecoration:"none",display:"block",marginBottom:14,...mono}}>↗ {post.link.replace(/^https?:\/\//,"")}</a>}
           <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono}}>
