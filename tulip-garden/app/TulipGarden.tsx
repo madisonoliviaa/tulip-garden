@@ -76,7 +76,7 @@ interface PanicConfig {
   color?: string;
 }
 
-const PARENT_ID: string = "5d80c89b9beb2be790fcb2af9b5558d5965ef7bd1c45a0908222011ec8addadei0";
+const PARENT_ID: string = "785d9b15a0b0cbd4c0e4a311311545934680e98976ce018f334b815a4cf0678bi0";
 const ORDINALS_BASE: string = "https://ordinals.com";
 const DEFAULT_COLOR: string = "#39ff14";
 const API_BASE: string = process.env.NEXT_PUBLIC_API_URL || "https://tulip-garden-api.fly.dev/api";
@@ -1543,9 +1543,13 @@ export default function TulipGarden(): React.ReactElement {
         )}
       </div>
 
-      <div style={{borderTop:"1px solid #0d3d0d",padding:"16px 24px",display:"flex",justifyContent:"space-between",fontSize:10,color:"#0d3d0d",letterSpacing:1,flexWrap:"wrap",gap:8}}>
-        <span>TULIP GARDEN · BITCOIN ORDINALS <span style={{whiteSpace:"nowrap"}}>PARENT: {PARENT_ID}</span></span>
-        <span>ROOTED AT @ · INSPIRED BY <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#0d3d0d",textDecoration:"none"}}>GAME.TULIP.FARM</a> & ROGUE (1980)</span>
+      <div style={{borderTop:"1px solid #0d3d0d",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:10,color:"#0d3d0d",letterSpacing:1,flexWrap:"wrap",gap:12}}>
+        <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          <span>TULIP GARDEN · BITCOIN ORDINALS</span>
+          <span style={{whiteSpace:"nowrap"}}>PARENT: {PARENT_ID}</span>
+          <span>ROOTED AT @ · INSPIRED BY <a href="https://game.tulip.farm" target="_blank" rel="noopener noreferrer" style={{color:"#0d3d0d",textDecoration:"none"}}>GAME.TULIP.FARM</a> & ROGUE (1980)</span>
+        </div>
+        <img src="/acc-logo.png" alt="Anyone Can Cook Productions" style={{width:72,height:72,borderRadius:"50%",opacity:0.7}} />
       </div>
     </div>
   );

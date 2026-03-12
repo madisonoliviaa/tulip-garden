@@ -6,7 +6,7 @@ Rooted at `@`. Inspired by [game.tulip.farm](https://game.tulip.farm) by Casey R
 
 ## Parent inscription
 
-`5d80c89b9beb2be790fcb2af9b5558d5965ef7bd1c45a0908222011ec8addadei0`
+`785d9b15a0b0cbd4c0e4a311311545934680e98976ce018f334b815a4cf0678bi0`
 
 ## How to plant a tulip
 
