@@ -916,7 +916,6 @@ function MarketplacePoll(): React.ReactElement {
   const [votes,setVotes] = useState<Record<string, number>>({});
   const [userVote,setUserVote] = useState<string | null>(null);
   const [loaded,setLoaded] = useState<boolean>(false);
-  const [newsPosts,setNewsPosts] = useState<NewsPost[]>([]);
   useEffect(()=>{
     fetch(`${API_BASE}/poll`).then(r=>r.json()).then(setVotes).catch(()=>{});
     fetch(`${API_BASE}/poll/my-vote`)
@@ -958,7 +957,6 @@ function MarketplacePoll(): React.ReactElement {
   const [isCommenting,setIsCommenting] = useState<boolean>(false);
   const [likedComments,setLikedComments] = useState<Record<string, boolean>>(()=>{try{return JSON.parse(localStorage.getItem("tg_comment_reactions")||"{}");} catch{return{};}});
   useEffect(()=>{fetch(`${API_BASE}/comments`).then(r=>r.json()).then(setComments).catch(()=>{});},[]);
-  useEffect(()=>{fetch(`${API_BASE}/news?limit=2`).then(r=>r.json()).then(setNewsPosts).catch(()=>{});},[]);
   const addComment=(): void=>{
     setCommentError("");
     const text=commentText.trim();
@@ -1135,10 +1133,6 @@ function MarketplacePoll(): React.ReactElement {
 
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:24}}>
         <AnalyticsPlaceholder />
-      </div>
-
-      <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:24}}>
-        <NewsSection posts={newsPosts} limit={2} />
       </div>
 
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
