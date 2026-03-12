@@ -1192,6 +1192,19 @@ function NewsSection(): React.ReactElement {
           </div>
         </div>
       </div>
+
+      <div style={{border:"1px solid #1a4a1a",padding:"16px",background:"rgba(57,255,20,0.02)",marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <span style={{color:"#39ff14",fontSize:11,letterSpacing:1,...mono}}>GALLERIES DEBATE — ORDZAAR CONTROVERSY</span>
+          <span style={{color:"#0d3d0d",fontSize:9,...mono}}>MARCH 2026</span>
+        </div>
+        <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono}}>
+          <p style={{margin:"0 0 10px 0"}}>After Magic Eden sunsetted Ordinals support, thousands of collections lost their off-chain metadata. Ordzaar launched a gallery mint to inscribe that data on-chain for ~5,481 ME-listed collections — charging a 2,500 sat platform fee per mint with random collection assignment.</p>
+          <p style={{margin:"0 0 10px 0"}}>The response was mixed. Critics pointed out that galleries are permissionless — anyone can inscribe one directly via ord for less. Concerns also arose around data quality, with scraped ME metadata often being incomplete or inaccurate, potentially locking bad data on-chain permanently. Some founders felt blindsided by random minters claiming their collection&apos;s gallery slot first.</p>
+          <p style={{margin:"0 0 10px 0"}}>Supporters argued it&apos;s a net positive for abandoned projects whose founders are long gone — without someone stepping up, that metadata disappears forever. The timing coincided with ord v0.27.0 shipping major gallery improvements, adding fuel to the broader conversation around on-chain provenance, parent-child vs. galleries, and who should control collection metadata.</p>
+          <p style={{margin:"0 0 4px 0",color:"#39ff14",fontStyle:"italic"}}>What are your thoughts? Share them in the comments below. ↓</p>
+        </div>
+      </div>
     </div>
   );
 }
