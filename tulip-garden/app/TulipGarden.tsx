@@ -1089,7 +1089,7 @@ function MarketplacePoll(): React.ReactElement {
 
   return (
     <div style={{marginBottom:32}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:12}}>
         <div>
           <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ POLL — WEEKLY MARKETPLACE SENTIMENT</div>
           <div style={{color:"#0d3d0d",fontSize:9,letterSpacing:1,fontStyle:"italic",marginBottom:6}}>*results posted every thursday*</div>
