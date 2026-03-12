@@ -91,7 +91,8 @@ fn init_db(conn: &Connection) {
             text TEXT NOT NULL,
             ts INTEGER NOT NULL,
             likes INTEGER NOT NULL DEFAULT 0,
-            dislikes INTEGER NOT NULL DEFAULT 0
+            dislikes INTEGER NOT NULL DEFAULT 0,
+            parent_id INTEGER DEFAULT NULL
         );
         CREATE TABLE IF NOT EXISTS submissions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -122,6 +123,11 @@ fn init_db(conn: &Connection) {
         );",
     )
     .expect("failed to initialize database");
+
+    // Migrations for existing databases
+    let _ = conn.execute_batch(
+        "ALTER TABLE comments ADD COLUMN parent_id INTEGER DEFAULT NULL;"
+    );
 }
 
 // --- Helpers ---
@@ -379,12 +385,14 @@ struct Comment {
     ts: i64,
     likes: i64,
     dislikes: i64,
+    parent_id: Option<i64>,
 }
 
 #[derive(Deserialize)]
 struct NewComment {
     name: Option<String>,
     text: String,
+    parent_id: Option<i64>,
 }
 
 async fn get_comments(State(state): State<AppState>) -> Result<Json<Vec<Comment>>, AppError> {
@@ -393,7 +401,7 @@ async fn get_comments(State(state): State<AppState>) -> Result<Json<Vec<Comment>
         .lock()
         .map_err(|_| AppError::Internal("db lock failed".into()))?;
     let mut stmt = conn
-        .prepare("SELECT id, name, text, ts, likes, dislikes FROM comments ORDER BY ts DESC")
+        .prepare("SELECT id, name, text, ts, likes, dislikes, parent_id FROM comments ORDER BY ts DESC")
         .map_err(|e| AppError::Internal(e.to_string()))?;
     let rows = stmt
         .query_map([], |row| {
@@ -404,6 +412,7 @@ async fn get_comments(State(state): State<AppState>) -> Result<Json<Vec<Comment>
                 ts: row.get(3)?,
                 likes: row.get(4)?,
                 dislikes: row.get(5)?,
+                parent_id: row.get(6)?,
             })
         })
         .map_err(|e| AppError::Internal(e.to_string()))?;
@@ -441,9 +450,10 @@ async fn post_comment(
         .lock()
         .map_err(|_| AppError::Internal("db lock failed".into()))?;
     let ts = now_ms();
+    let parent_id = body.parent_id;
     conn.execute(
-        "INSERT INTO comments (name, text, ts) VALUES (?1, ?2, ?3)",
-        rusqlite::params![name, text, ts],
+        "INSERT INTO comments (name, text, ts, parent_id) VALUES (?1, ?2, ?3, ?4)",
+        rusqlite::params![name, text, ts, parent_id],
     )
     .map_err(|e| AppError::Internal(e.to_string()))?;
     let id = conn.last_insert_rowid();
@@ -454,12 +464,13 @@ async fn post_comment(
         ts,
         likes: 0,
         dislikes: 0,
+        parent_id,
     }))
 }
 
 fn get_comment_by_id(conn: &Connection, id: i64) -> Result<Comment, AppError> {
     conn.query_row(
-        "SELECT id, name, text, ts, likes, dislikes FROM comments WHERE id = ?1",
+        "SELECT id, name, text, ts, likes, dislikes, parent_id FROM comments WHERE id = ?1",
         [id],
         |row| {
             Ok(Comment {
@@ -469,6 +480,7 @@ fn get_comment_by_id(conn: &Connection, id: i64) -> Result<Comment, AppError> {
                 ts: row.get(3)?,
                 likes: row.get(4)?,
                 dislikes: row.get(5)?,
+                parent_id: row.get(6)?,
             })
         },
     )
@@ -773,7 +785,7 @@ async fn admin_data(
 
     // Comments
     let mut stmt = conn
-        .prepare("SELECT id, name, text, ts, likes, dislikes FROM comments ORDER BY ts DESC")
+        .prepare("SELECT id, name, text, ts, likes, dislikes, parent_id FROM comments ORDER BY ts DESC")
         .map_err(|e| AppError::Internal(e.to_string()))?;
     let comments: Vec<Comment> = stmt
         .query_map([], |row| {
@@ -784,6 +796,7 @@ async fn admin_data(
                 ts: row.get(3)?,
                 likes: row.get(4)?,
                 dislikes: row.get(5)?,
+                parent_id: row.get(6)?,
             })
         })
         .map_err(|e| AppError::Internal(e.to_string()))?

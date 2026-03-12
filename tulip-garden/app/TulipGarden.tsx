@@ -40,6 +40,7 @@ interface Comment {
   ts: string;
   likes: number;
   dislikes: number;
+  parent_id: number | null;
 }
 
 interface Submission {
@@ -1012,6 +1013,82 @@ function MarketplacePoll(): React.ReactElement {
 
   const inputStyle: React.CSSProperties={...mono,background:"rgba(57,255,20,0.04)",border:"1px solid #1a4a1a",color:"#7fff7f",padding:"7px 10px",fontSize:11,width:"100%",outline:"none"};
 
+  const [replyTo,setReplyTo] = useState<number|null>(null);
+  const [replyText,setReplyText] = useState<string>("");
+  const [replyName,setReplyName] = useState<string>("");
+  const [replyError,setReplyError] = useState<string>("");
+  const [isReplying,setIsReplying] = useState<boolean>(false);
+
+  const addReply=(parentId: number): void=>{
+    setReplyError("");
+    const text=replyText.trim();
+    const name=replyName.trim();
+    if(!text){setReplyError("ERR: reply text required");return;}
+    if(text.length>500){setReplyError("ERR: reply too long (max 500)");return;}
+    if(name.length>50){setReplyError("ERR: name too long (max 50)");return;}
+    setIsReplying(true);
+    fetch(`${API_BASE}/comments`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name||null,text,parent_id:parentId})})
+      .then(r=>{if(!r.ok)return r.json().then((e:{error?:string})=>{throw new Error(e.error||"failed")});return r.json();})
+      .then((c: Comment)=>{setComments(prev=>[c,...prev]);setReplyText("");setReplyTo(null);})
+      .catch((e: Error)=>setReplyError(`ERR: ${e.message}`))
+      .finally(()=>setIsReplying(false));
+  };
+
+  // Build threaded comments
+  const topLevel: Comment[]=comments.filter(c=>!c.parent_id);
+  const getReplies=(parentId: string): Comment[]=>comments.filter(c=>String(c.parent_id)===String(parentId));
+
+  const formatTime=(ts: string): string=>{
+    const d=new Date(ts);
+    const now=new Date();
+    const diff=now.getTime()-d.getTime();
+    const mins=Math.floor(diff/60000);
+    if(mins<1)return "just now";
+    if(mins<60)return `${mins}m ago`;
+    const hrs=Math.floor(mins/60);
+    if(hrs<24)return `${hrs}h ago`;
+    const days=Math.floor(hrs/24);
+    if(days<30)return `${days}d ago`;
+    return d.toLocaleDateString();
+  };
+
+  const score=(c: Comment): number=>(c.likes||0)-(c.dislikes||0);
+
+  const renderComment=(c: Comment, depth: number=0): React.ReactElement=>{
+    const replies=getReplies(c.id);
+    const s=score(c);
+    return (
+      <div key={c.id} style={{marginLeft:depth>0?24:0,borderLeft:depth>0?"2px solid #0d3d0d":"none",paddingLeft:depth>0?12:0,marginTop:depth>0?8:0}}>
+        <div style={{background:"rgba(0,6,10,0.8)",border:"1px solid #1a3a1a",padding:"12px 14px",borderRadius:2}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+            <span style={{color:"#39ff14",fontSize:10,...mono}}>⬡</span>
+            <span style={{color:"#7fff7f",fontSize:11,fontWeight:"bold",...mono}}>{c.name||"anon"}</span>
+            <span style={{color:"#0d3d0d",fontSize:9,...mono}}>·</span>
+            <span style={{color:"#1a4a1a",fontSize:9,...mono}}>{formatTime(c.ts)}</span>
+          </div>
+          <div style={{color:"#2a8a2a",fontSize:11,lineHeight:1.8,...mono,padding:"4px 0 8px 18px"}}>{c.text}</div>
+          <div style={{display:"flex",gap:16,alignItems:"center",paddingLeft:18}}>
+            <button onClick={()=>reactComment(c.id,"like")} disabled={likedComments[`${c.id}_like`]} style={{...mono,background:"transparent",border:"none",color:likedComments[`${c.id}_like`]?"#39ff14":"#1a4a1a",cursor:likedComments[`${c.id}_like`]?"default":"pointer",fontSize:10,padding:0,display:"flex",alignItems:"center",gap:4}}>▲ <span style={{color:s>0?"#39ff14":s<0?"#ff4444":"#1a4a1a"}}>{s}</span></button>
+            <button onClick={()=>reactComment(c.id,"dislike")} disabled={likedComments[`${c.id}_dislike`]} style={{...mono,background:"transparent",border:"none",color:likedComments[`${c.id}_dislike`]?"#ff4444":"#1a4a1a",cursor:likedComments[`${c.id}_dislike`]?"default":"pointer",fontSize:10,padding:0}}>▼</button>
+            <button onClick={()=>setReplyTo(replyTo===Number(c.id)?null:Number(c.id))} style={{...mono,background:"transparent",border:"none",color:"#1a4a1a",cursor:"pointer",fontSize:10,padding:0}}>↩ reply</button>
+            {replies.length>0&&<span style={{color:"#1a4a1a",fontSize:9,...mono}}>{replies.length} repl{replies.length===1?"y":"ies"}</span>}
+          </div>
+          {replyTo===Number(c.id)&&(
+            <div style={{marginTop:10,paddingLeft:18,display:"flex",flexDirection:"column",gap:6}}>
+              <div style={{display:"flex",gap:6}}>
+                <input value={replyName} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setReplyName(e.target.value)} placeholder="name" maxLength={50} style={{...inputStyle,width:"25%",fontSize:10}} />
+                <input value={replyText} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setReplyText(e.target.value)} placeholder="reply..." maxLength={500} style={{...inputStyle,fontSize:10}} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>)=>{if(e.key==="Enter")addReply(Number(c.id));}} />
+                <button onClick={()=>addReply(Number(c.id))} disabled={isReplying} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"5px 10px",cursor:isReplying?"default":"pointer",fontSize:9,letterSpacing:1,flexShrink:0,opacity:isReplying?0.5:1}}>{isReplying?"...":"REPLY"}</button>
+              </div>
+              {replyError&&<div style={{color:"#ff4444",fontSize:9,...mono}}>{replyError}</div>}
+            </div>
+          )}
+        </div>
+        {replies.map(r=>renderComment(r,depth+1))}
+      </div>
+    );
+  };
+
   return (
     <div style={{marginBottom:32}}>
       <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ POLL — WEEKLY MARKETPLACE SENTIMENT</div>
@@ -1020,23 +1097,23 @@ function MarketplacePoll(): React.ReactElement {
         {total>0?`${total} vote${total!==1?"s":""} cast.`:"Be the first to vote."}
         {userVote&&<span style={{color:"#7fff7f"}}> You voted for {MARKETPLACES.find(m=>m.id===userVote)?.name}.</span>}
       </div>
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {MARKETPLACES.filter(m=>m.type!=="tool").map((m: Marketplace)=>{
           const count: number=votes[m.id]||0;
           const pct: number=total>0?Math.round((count/total)*100):0;
           const barWidth: number=total>0?(count/maxVotes)*100:0;
           const voted: boolean=userVote===m.id;
           return (
-            <div key={m.id} style={{border:`1px solid ${voted?"#39ff14":"#1a4a1a"}`,padding:"12px 14px",background:voted?"rgba(57,255,20,0.06)":"rgba(57,255,20,0.02)"}}>
+            <div key={m.id} style={{border:`1px solid ${voted?"#39ff14":"#0d2d0d"}`,padding:"12px 14px",background:voted?"rgba(57,255,20,0.08)":"rgba(0,6,10,0.6)",borderRadius:2,transition:"all 0.2s ease"}}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-                <button onClick={()=>vote(m.id)} disabled={voted} style={{...mono,background:voted?"rgba(57,255,20,0.2)":"transparent",border:`1px solid ${voted?"#39ff14":"#1a4a1a"}`,color:voted?"#39ff14":"#1a6a1a",padding:"4px 10px",cursor:voted?"default":"pointer",fontSize:10,letterSpacing:1,flexShrink:0}}>
+                <button onClick={()=>vote(m.id)} disabled={voted} style={{...mono,background:voted?"rgba(57,255,20,0.2)":"rgba(0,0,0,0.3)",border:`1px solid ${voted?"#39ff14":"#1a4a1a"}`,color:voted?"#39ff14":"#1a6a1a",padding:"4px 10px",cursor:voted?"default":"pointer",fontSize:10,letterSpacing:1,flexShrink:0,borderRadius:2}}>
                   {voted?"✓ VOTED":"VOTE"}
                 </button>
                 <span style={{color:voted?"#39ff14":"#7fff7f",fontSize:12,...mono}}>{m.name}</span>
-                <span style={{color:"#1a6a1a",fontSize:11,marginLeft:"auto",...mono}}>{count} · {pct}%</span>
+                <span style={{color:voted?"#39ff14":"#1a6a1a",fontSize:11,marginLeft:"auto",...mono}}>{count} · {pct}%</span>
               </div>
-              <div style={{height:3,background:"#0d3d0d"}}>
-                <div style={{height:"100%",width:`${barWidth}%`,background:voted?"#39ff14":"#1a8a1a",transition:"width 0.5s ease"}} />
+              <div style={{height:4,background:"rgba(0,0,0,0.4)",borderRadius:2}}>
+                <div style={{height:"100%",width:`${barWidth}%`,background:voted?"#39ff14":"#1a8a1a",transition:"width 0.5s ease",borderRadius:2,boxShadow:voted?"0 0 8px rgba(57,255,20,0.4)":"none"}} />
               </div>
             </div>
           );
@@ -1050,32 +1127,6 @@ function MarketplacePoll(): React.ReactElement {
 
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:24}}>
         <NewsSection posts={newsPosts} limit={2} />
-      </div>
-
-      <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
-        <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ COMMENTS || SUGGESTIONS</div>
-        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
-          {comments.length===0&&<div style={{color:"#1a4a1a",fontSize:11,...mono}}>No comments yet. Be the first.</div>}
-          {comments.map((c: Comment, i: number)=>(
-            <div key={i} style={{border:"1px solid #1a4a1a",padding:"10px 12px",background:"rgba(57,255,20,0.02)"}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                <span style={{color:"#7fff7f",fontSize:11,...mono}}>{c.name}</span>
-                <span style={{color:"#1a4a1a",fontSize:9,...mono}}>{new Date(c.ts).toLocaleDateString()} {new Date(c.ts).toLocaleTimeString()}</span>
-              </div>
-              <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.6,...mono}}>{c.text}</div>
-              <div style={{display:"flex",gap:12,marginTop:6}}>
-                <button onClick={()=>reactComment(c.id,"like")} disabled={likedComments[`${c.id}_like`]} style={{...mono,background:"transparent",border:"none",color:likedComments[`${c.id}_like`]?"#39ff14":"#1a4a1a",cursor:likedComments[`${c.id}_like`]?"default":"pointer",fontSize:10,padding:0}}>♥ {c.likes||0}</button>
-                <button onClick={()=>reactComment(c.id,"dislike")} disabled={likedComments[`${c.id}_dislike`]} style={{...mono,background:"transparent",border:"none",color:likedComments[`${c.id}_dislike`]?"#ff4444":"#1a4a1a",cursor:likedComments[`${c.id}_dislike`]?"default":"pointer",fontSize:10,padding:0}}>▼ {c.dislikes||0}</button>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{display:"flex",gap:8,marginBottom:8}}>
-          <input value={commentName} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentName(e.target.value)} placeholder="name (optional)" maxLength={50} style={{...inputStyle,width:"30%"}} />
-          <input value={commentText} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentText(e.target.value)} placeholder="leave a comment..." maxLength={500} style={inputStyle} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>)=>{if(e.key==="Enter")addComment();}} />
-          <button onClick={addComment} disabled={isCommenting} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"7px 14px",cursor:isCommenting?"default":"pointer",fontSize:10,letterSpacing:1,flexShrink:0,opacity:isCommenting?0.5:1}}>{isCommenting?"...":"POST"}</button>
-        </div>
-        {commentError&&<div style={{color:"#ff4444",fontSize:10,fontFamily:"monospace",padding:"4px 8px",border:"1px solid #441a1a",background:"rgba(255,0,0,0.05)",marginBottom:8}}>{commentError}</div>}
       </div>
 
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
@@ -1098,6 +1149,22 @@ function MarketplacePoll(): React.ReactElement {
             <button onClick={submitTool} disabled={isSubmitting} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"8px 14px",cursor:isSubmitting?"default":"pointer",fontSize:10,letterSpacing:1,alignSelf:"flex-start",marginTop:4,opacity:isSubmitting?0.5:1}}>{isSubmitting?"...":"SUBMIT"}</button>
           </div>
         )}
+      </div>
+
+      <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
+        <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:16}}>⬡ COMMENTS</div>
+        <div style={{background:"rgba(0,6,10,0.5)",border:"1px solid #0d2d0d",padding:"14px",marginBottom:16,borderRadius:2}}>
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            <input value={commentName} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentName(e.target.value)} placeholder="name (optional)" maxLength={50} style={{...inputStyle,width:"25%"}} />
+            <input value={commentText} onChange={(e: React.ChangeEvent<HTMLInputElement>)=>setCommentText(e.target.value)} placeholder="what do you think?" maxLength={500} style={inputStyle} onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>)=>{if(e.key==="Enter")addComment();}} />
+            <button onClick={addComment} disabled={isCommenting} style={{...mono,background:"transparent",border:"1px solid #1a4a1a",color:"#1a6a1a",padding:"7px 14px",cursor:isCommenting?"default":"pointer",fontSize:10,letterSpacing:1,flexShrink:0,opacity:isCommenting?0.5:1}}>{isCommenting?"...":"POST"}</button>
+          </div>
+          {commentError&&<div style={{color:"#ff4444",fontSize:10,fontFamily:"monospace",padding:"4px 8px",border:"1px solid #441a1a",background:"rgba(255,0,0,0.05)"}}>{commentError}</div>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {topLevel.length===0&&<div style={{color:"#1a4a1a",fontSize:11,...mono}}>No comments yet. Be the first.</div>}
+          {topLevel.map((c: Comment)=>renderComment(c,0))}
+        </div>
       </div>
     </div>
   );
