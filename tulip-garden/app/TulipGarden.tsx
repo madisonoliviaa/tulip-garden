@@ -1099,7 +1099,7 @@ function MarketplacePoll(): React.ReactElement {
           </div>
         </div>
         <div style={{flex:1}} />
-        <div style={{border:"1px solid #39ff1440",padding:"12px 24px",background:"rgba(57,255,20,0.04)",borderRadius:2,textAlign:"center",boxShadow:"0 0 12px rgba(57,255,20,0.08), inset 0 0 8px rgba(57,255,20,0.03)",marginRight:"15%"}}>
+        <div style={{border:"1px solid #39ff1440",padding:"12px 24px",background:"rgba(57,255,20,0.04)",borderRadius:2,textAlign:"center",boxShadow:"0 0 12px rgba(57,255,20,0.08), inset 0 0 8px rgba(57,255,20,0.03)",marginRight:"15%",position:"relative",top:-6}}>
           <div style={{color:"#39ff14",fontSize:10,letterSpacing:3,...mono,marginBottom:6,opacity:0.6}}>★ MARKETPLACE OF THE WEEK ★</div>
           {(()=>{
             if(total===0)return <div style={{color:"#1a4a1a",fontSize:12,...mono}}>voting in progress...</div>;
