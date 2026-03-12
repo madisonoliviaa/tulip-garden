@@ -1091,7 +1091,19 @@ function MarketplacePoll(): React.ReactElement {
 
   return (
     <div style={{marginBottom:32}}>
-      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ POLL — WEEKLY MARKETPLACE SENTIMENT</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4,flexWrap:"wrap",gap:8}}>
+        <div style={{color:"#39ff14",fontSize:12,letterSpacing:2}}>⬡ POLL — WEEKLY MARKETPLACE SENTIMENT</div>
+        <div style={{border:"1px solid #1a4a1a",padding:"8px 14px",background:"rgba(0,6,10,0.6)",borderRadius:2,textAlign:"right"}}>
+          <div style={{color:"#1a4a1a",fontSize:8,letterSpacing:2,...mono,marginBottom:4}}>MARKETPLACE OF THE WEEK</div>
+          {(()=>{
+            if(total===0)return <div style={{color:"#0d3d0d",fontSize:10,...mono}}>voting in progress...</div>;
+            const sorted=MARKETPLACES.filter(m=>m.type!=="tool").map(m=>({...m,count:votes[m.id]||0})).sort((a,b)=>b.count-a.count);
+            const winner=sorted[0];
+            if(!winner||winner.count===0)return <div style={{color:"#0d3d0d",fontSize:10,...mono}}>voting in progress...</div>;
+            return <div style={{color:"#39ff14",fontSize:12,...mono,textShadow:"0 0 8px rgba(57,255,20,0.5)"}}>★ {winner.name.toUpperCase()}</div>;
+          })()}
+        </div>
+      </div>
       <div style={{color:"#0d3d0d",fontSize:9,letterSpacing:1,marginBottom:12,fontStyle:"italic"}}>*results posted every thursday*</div>
       <div style={{color:"#1a6a1a",fontSize:11,marginBottom:20,lineHeight:1.8}}>
         {total>0?`${total} vote${total!==1?"s":""} cast.`:"Be the first to vote."}
