@@ -1089,25 +1089,21 @@ function MarketplacePoll(): React.ReactElement {
 
   return (
     <div style={{marginBottom:32}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:12}}>
-        <div>
-          <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ POLL — WEEKLY MARKETPLACE SENTIMENT</div>
-          <div style={{color:"#0d3d0d",fontSize:9,letterSpacing:1,fontStyle:"italic",marginBottom:6}}>*results posted every thursday*</div>
-          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8}}>
-            {total>0?`${total} vote${total!==1?"s":""} cast.`:"Be the first to vote."}
-            {userVote&&<span style={{color:"#7fff7f"}}> You voted for {MARKETPLACES.find(m=>m.id===userVote)?.name}.</span>}
-          </div>
-        </div>
-        <div style={{border:"1px solid #39ff1440",padding:"12px 24px",background:"rgba(57,255,20,0.04)",borderRadius:2,textAlign:"center",boxShadow:"0 0 12px rgba(57,255,20,0.08), inset 0 0 8px rgba(57,255,20,0.03)"}}>
-          <div style={{color:"#39ff14",fontSize:10,letterSpacing:3,...mono,marginBottom:6,opacity:0.6}}>★ MARKETPLACE OF THE WEEK ★</div>
-          {(()=>{
-            if(total===0)return <div style={{color:"#1a4a1a",fontSize:12,...mono}}>voting in progress...</div>;
-            const sorted=MARKETPLACES.filter(m=>m.type!=="tool").map(m=>({...m,count:votes[m.id]||0})).sort((a,b)=>b.count-a.count);
-            const winner=sorted[0];
-            if(!winner||winner.count===0)return <div style={{color:"#1a4a1a",fontSize:12,...mono}}>voting in progress...</div>;
-            return <div style={{color:"#39ff14",fontSize:17,fontWeight:"bold",...mono,textShadow:"0 0 12px rgba(57,255,20,0.7), 0 0 24px rgba(57,255,20,0.3)",letterSpacing:2}}>{winner.name.toUpperCase()}</div>;
-          })()}
-        </div>
+      <div style={{border:"1px solid #39ff1440",padding:"12px 24px",background:"rgba(57,255,20,0.04)",borderRadius:2,textAlign:"center",boxShadow:"0 0 12px rgba(57,255,20,0.08), inset 0 0 8px rgba(57,255,20,0.03)",marginBottom:16,display:"inline-block"}}>
+        <div style={{color:"#39ff14",fontSize:10,letterSpacing:3,...mono,marginBottom:6,opacity:0.6}}>★ MARKETPLACE OF THE WEEK ★</div>
+        {(()=>{
+          if(total===0)return <div style={{color:"#1a4a1a",fontSize:12,...mono}}>voting in progress...</div>;
+          const sorted=MARKETPLACES.filter(m=>m.type!=="tool").map(m=>({...m,count:votes[m.id]||0})).sort((a,b)=>b.count-a.count);
+          const winner=sorted[0];
+          if(!winner||winner.count===0)return <div style={{color:"#1a4a1a",fontSize:12,...mono}}>voting in progress...</div>;
+          return <div style={{color:"#39ff14",fontSize:17,fontWeight:"bold",...mono,textShadow:"0 0 12px rgba(57,255,20,0.7), 0 0 24px rgba(57,255,20,0.3)",letterSpacing:2}}>{winner.name.toUpperCase()}</div>;
+        })()}
+      </div>
+      <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ POLL — WEEKLY MARKETPLACE SENTIMENT</div>
+      <div style={{color:"#0d3d0d",fontSize:9,letterSpacing:1,fontStyle:"italic",marginBottom:6}}>*results posted every thursday*</div>
+      <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,marginBottom:16}}>
+        {total>0?`${total} vote${total!==1?"s":""} cast.`:"Be the first to vote."}
+        {userVote&&<span style={{color:"#7fff7f"}}> You voted for {MARKETPLACES.find(m=>m.id===userVote)?.name}.</span>}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {MARKETPLACES.filter(m=>m.type!=="tool").map((m: Marketplace)=>{
