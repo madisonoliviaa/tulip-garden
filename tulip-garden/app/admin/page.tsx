@@ -27,11 +27,21 @@ interface PollVoter {
   choice: string
 }
 
+interface NewsPost {
+  id: number
+  title: string
+  content: string
+  link: string
+  category: string
+  ts: number
+}
+
 interface AdminData {
   comments: Comment[]
   submissions: Submission[]
   poll_votes: Record<string, number>
   poll_voters: PollVoter[]
+  news: NewsPost[]
 }
 
 export default function AdminPage(): React.ReactElement {
@@ -40,6 +50,11 @@ export default function AdminPage(): React.ReactElement {
   const [data, setData] = useState<AdminData | null>(null)
   const [error, setError] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
+  const [newsTitle, setNewsTitle] = useState<string>("")
+  const [newsContent, setNewsContent] = useState<string>("")
+  const [newsLink, setNewsLink] = useState<string>("")
+  const [newsCategory, setNewsCategory] = useState<string>("general")
+  const [newsCreating, setNewsCreating] = useState<boolean>(false)
 
   const mono: React.CSSProperties = { fontFamily: "monospace" }
   const bg = "rgb(5, 15, 5)"
@@ -104,6 +119,50 @@ export default function AdminPage(): React.ReactElement {
       })
       .then(() => fetchData())
       .catch(() => setError("failed to reset poll"))
+  }
+
+  const createNews = (): void => {
+    if (!newsTitle.trim() || !newsContent.trim()) return
+    setNewsCreating(true)
+    fetch(`${API_BASE}/admin/news`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        key,
+        title: newsTitle,
+        content: newsContent,
+        link: newsLink || undefined,
+        category: newsCategory,
+      }),
+    })
+      .then(r => {
+        if (!r.ok) return r.json().then((e: { error?: string }) => { throw new Error(e.error || "failed") })
+        return r.json()
+      })
+      .then(() => {
+        setNewsTitle("")
+        setNewsContent("")
+        setNewsLink("")
+        setNewsCategory("general")
+        fetchData()
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setNewsCreating(false))
+  }
+
+  const deleteNews = (id: number): void => {
+    if (!confirm(`Delete news post #${id}?`)) return
+    fetch(`${API_BASE}/admin/news/${id}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    })
+      .then(r => {
+        if (!r.ok) throw new Error("failed")
+        return r.json()
+      })
+      .then(() => fetchData())
+      .catch(() => setError("failed to delete news post"))
   }
 
   const formatDate = (ts: number): string => {
@@ -337,6 +396,70 @@ export default function AdminPage(): React.ReactElement {
                     <tr key={i}>
                       <td style={{ ...cellStyle, color: "#1a6a1a" }}>{v.ip}</td>
                       <td style={cellStyle}>{v.choice}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* News */}
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ color: "#39ff14", fontSize: 12, letterSpacing: 2, marginBottom: 12 }}>
+              NEWS ({data.news.length})
+            </div>
+            <div style={{ border: "1px solid #1a4a1a", padding: 16, marginBottom: 16, background: "rgba(57,255,20,0.02)" }}>
+              <div style={{ color: "#1a8a1a", fontSize: 10, letterSpacing: 2, marginBottom: 12 }}>+ ADD NEWS POST</div>
+              <input value={newsTitle} onChange={e => setNewsTitle(e.target.value)} placeholder="title *"
+                maxLength={200} style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a",
+                color: "#7fff7f", padding: "8px 12px", fontSize: 11, width: "100%", outline: "none", marginBottom: 8, boxSizing: "border-box" as const }} />
+              <textarea value={newsContent} onChange={e => setNewsContent(e.target.value)} placeholder="content (markdown) *"
+                maxLength={10000} rows={8} style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a",
+                color: "#7fff7f", padding: "8px 12px", fontSize: 11, width: "100%", outline: "none", marginBottom: 8, boxSizing: "border-box" as const, resize: "vertical" as const }} />
+              <input value={newsLink} onChange={e => setNewsLink(e.target.value)} placeholder="link (optional, https://...)"
+                maxLength={500} style={{ ...mono, background: "rgba(57,255,20,0.04)", border: "1px solid #1a4a1a",
+                color: "#7fff7f", padding: "8px 12px", fontSize: 11, width: "100%", outline: "none", marginBottom: 8, boxSizing: "border-box" as const }} />
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                <span style={{ color: "#1a6a1a", fontSize: 10, ...mono }}>CATEGORY:</span>
+                {["general", "release", "update", "controversy"].map(c => (
+                  <button key={c} onClick={() => setNewsCategory(c)} style={{ ...mono, background: newsCategory === c ? "rgba(57,255,20,0.15)" : "transparent",
+                    border: `1px solid ${newsCategory === c ? "#39ff14" : "#1a4a1a"}`, color: newsCategory === c ? "#39ff14" : "#1a6a1a",
+                    padding: "4px 10px", cursor: "pointer", fontSize: 9, letterSpacing: 1 }}>{c.toUpperCase()}</button>
+                ))}
+              </div>
+              <button onClick={createNews} disabled={newsCreating} style={{ ...mono, background: "rgba(57,255,20,0.1)", border: "1px solid #39ff14",
+                color: "#39ff14", padding: "8px 20px", cursor: "pointer", fontSize: 10, letterSpacing: 2, opacity: newsCreating ? 0.5 : 1 }}>
+                {newsCreating ? "..." : "CREATE NEWS POST"}
+              </button>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #1a3a1a" }}>
+                <thead>
+                  <tr>
+                    <th style={headerStyle}>ID</th>
+                    <th style={headerStyle}>TITLE</th>
+                    <th style={headerStyle}>CATEGORY</th>
+                    <th style={headerStyle}>LINK</th>
+                    <th style={headerStyle}>DATE</th>
+                    <th style={headerStyle}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.news.length === 0 && (
+                    <tr><td colSpan={6} style={{ ...cellStyle, color: "#1a4a1a", textAlign: "center" }}>no news posts</td></tr>
+                  )}
+                  {data.news.map(n => (
+                    <tr key={n.id}>
+                      <td style={cellStyle}>{n.id}</td>
+                      <td style={{ ...cellStyle, maxWidth: 250, wordBreak: "break-word" as const }}>{n.title}</td>
+                      <td style={cellStyle}>{n.category}</td>
+                      <td style={{ ...cellStyle, maxWidth: 200, wordBreak: "break-all" as const }}>
+                        {n.link ? <a href={n.link} target="_blank" rel="noopener noreferrer" style={{ color: "#39ff14", textDecoration: "none" }}>{n.link}</a> : "-"}
+                      </td>
+                      <td style={{ ...cellStyle, fontSize: 9, color: "#1a6a1a", whiteSpace: "nowrap" as const }}>{formatDate(n.ts)}</td>
+                      <td style={cellStyle}>
+                        <button onClick={() => deleteNews(n.id)} style={btnStyle}>DELETE</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

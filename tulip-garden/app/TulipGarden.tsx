@@ -51,6 +51,15 @@ interface Submission {
   ts: string;
 }
 
+interface NewsPost {
+  id: number;
+  title: string;
+  content: string;
+  link: string;
+  category: string;
+  ts: number;
+}
+
 interface Terminal {
   id: number;
   type: "bash" | "ubuntu" | "restricted";
@@ -906,6 +915,7 @@ function MarketplacePoll(): React.ReactElement {
   const [votes,setVotes] = useState<Record<string, number>>({});
   const [userVote,setUserVote] = useState<string | null>(null);
   const [loaded,setLoaded] = useState<boolean>(false);
+  const [newsPosts,setNewsPosts] = useState<NewsPost[]>([]);
   useEffect(()=>{
     fetch(`${API_BASE}/poll`).then(r=>r.json()).then(setVotes).catch(()=>{});
     fetch(`${API_BASE}/poll/my-vote`)
@@ -947,6 +957,7 @@ function MarketplacePoll(): React.ReactElement {
   const [isCommenting,setIsCommenting] = useState<boolean>(false);
   const [likedComments,setLikedComments] = useState<Record<string, boolean>>(()=>{try{return JSON.parse(localStorage.getItem("tg_comment_reactions")||"{}");} catch{return{};}});
   useEffect(()=>{fetch(`${API_BASE}/comments`).then(r=>r.json()).then(setComments).catch(()=>{});},[]);
+  useEffect(()=>{fetch(`${API_BASE}/news?limit=2`).then(r=>r.json()).then(setNewsPosts).catch(()=>{});},[]);
   const addComment=(): void=>{
     setCommentError("");
     const text=commentText.trim();
@@ -1038,7 +1049,7 @@ function MarketplacePoll(): React.ReactElement {
       </div>
 
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:24}}>
-        <NewsSection />
+        <NewsSection posts={newsPosts} limit={2} />
       </div>
 
       <div style={{marginTop:32,borderTop:"1px solid #0d3d0d",paddingTop:20}}>
@@ -1151,62 +1162,91 @@ function AnalyticsPlaceholder(): React.ReactElement {
   );
 }
 
-function NewsSection(): React.ReactElement {
+function renderInline(text: string): React.ReactNode {
+  const parts: React.ReactNode[]=[];
+  let remaining=text;
+  let key=0;
+  while(remaining.length>0){
+    const boldMatch=remaining.match(/\*\*(.+?)\*\*/);
+    const linkMatch=remaining.match(/\[(.+?)\]\((.+?)\)/);
+    const boldIdx=boldMatch?remaining.indexOf(boldMatch[0]):Infinity;
+    const linkIdx=linkMatch?remaining.indexOf(linkMatch[0]):Infinity;
+    if(boldIdx===Infinity&&linkIdx===Infinity){parts.push(remaining);break;}
+    if(boldIdx<=linkIdx&&boldMatch){
+      if(boldIdx>0)parts.push(remaining.slice(0,boldIdx));
+      parts.push(<span key={key++} style={{color:"#39ff14"}}>{boldMatch[1]}</span>);
+      remaining=remaining.slice(boldIdx+boldMatch[0].length);
+    }else if(linkMatch){
+      if(linkIdx>0)parts.push(remaining.slice(0,linkIdx));
+      parts.push(<a key={key++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",textDecoration:"none"}}>{linkMatch[1]}</a>);
+      remaining=remaining.slice(linkIdx+linkMatch[0].length);
+    }
+  }
+  return parts.length===1?parts[0]:<>{parts}</>;
+}
+
+function SimpleMarkdown({content}:{content:string}): React.ReactElement {
   const mono: React.CSSProperties={fontFamily:"monospace"};
+  const lines=content.split("\n");
+  const elements: React.ReactElement[]=[];
+  let i=0;
+  while(i<lines.length){
+    const line=lines[i];
+    if(line.startsWith("## ")){
+      elements.push(<div key={i} style={{color:"#7fff7f",fontSize:10,letterSpacing:1,marginBottom:6,marginTop:i>0?12:0,...mono}}>{line.slice(3)}</div>);
+      i++;continue;
+    }
+    if(line.match(/^[-*] /)){
+      elements.push(<div key={i} style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>· {renderInline(line.slice(2))}</div>);
+      i++;continue;
+    }
+    if(line.trim()===""){i++;continue;}
+    elements.push(<p key={i} style={{margin:"0 0 10px 0"}}>{renderInline(line)}</p>);
+    i++;
+  }
+  return <>{elements}</>;
+}
+
+function NewsSection({posts,limit}:{posts:NewsPost[];limit?:number}): React.ReactElement {
+  const mono: React.CSSProperties={fontFamily:"monospace"};
+  const displayed=limit?posts.slice(0,limit):posts;
+  const formatMonth=(ts:number):string=>{const d=new Date(ts);return `${d.toLocaleString("default",{month:"long"}).toUpperCase()} ${d.getFullYear()}`;};
+  if(displayed.length===0){
+    return (
+      <div>
+        <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ NEWS</div>
+        <div style={{color:"#1a4a1a",fontSize:11,...mono}}>No news yet. Check back soon.</div>
+      </div>
+    );
+  }
   return (
     <div>
       <div style={{color:"#39ff14",fontSize:12,letterSpacing:2,marginBottom:4}}>⬡ NEWS</div>
       <div style={{color:"#0d3d0d",fontSize:9,letterSpacing:1,marginBottom:20,fontStyle:"italic"}}>*latest updates from the ordinals ecosystem*</div>
-
-      <div style={{border:"1px solid #1a4a1a",padding:"16px",background:"rgba(57,255,20,0.02)",marginBottom:12}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <span style={{color:"#39ff14",fontSize:11,letterSpacing:1,...mono}}>ORD v0.27.0 RELEASED</span>
-          <span style={{color:"#0d3d0d",fontSize:9,...mono}}>MARCH 2026</span>
-        </div>
-        <a href="https://github.com/ordinals/ord/releases/tag/0.27.0" target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",fontSize:10,textDecoration:"none",display:"block",marginBottom:14,...mono}}>↗ github.com/ordinals/ord/releases/tag/0.27.0</a>
-
-        <div style={{marginBottom:12}}>
-          <div style={{color:"#7fff7f",fontSize:10,letterSpacing:1,marginBottom:6,...mono}}>ADDED</div>
-          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
-            · <span style={{color:"#39ff14"}}>/missing endpoint</span> — Bulk check for missing gallery items when inscribing. Previously each gallery item was checked one-by-one — this makes inscribing large galleries much faster. <span style={{color:"#0d3d0d"}}>(#4493 by casey)</span>
+      {displayed.map((post:NewsPost)=>(
+        <div key={post.id} style={{border:"1px solid #1a4a1a",padding:"16px",background:"rgba(57,255,20,0.02)",marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <span style={{color:"#39ff14",fontSize:11,letterSpacing:1,...mono}}>{post.title}</span>
+            <span style={{color:"#0d3d0d",fontSize:9,...mono}}>{formatMonth(post.ts)}</span>
+          </div>
+          {post.link&&<a href={post.link} target="_blank" rel="noopener noreferrer" style={{color:"#1a8a1a",fontSize:10,textDecoration:"none",display:"block",marginBottom:14,...mono}}>↗ {post.link.replace(/^https?:\/\//,"")}</a>}
+          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono}}>
+            <SimpleMarkdown content={post.content} />
           </div>
         </div>
-
-        <div style={{marginBottom:12}}>
-          <div style={{color:"#7fff7f",fontSize:10,letterSpacing:1,marginBottom:6,...mono}}>CHANGED</div>
-          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
-            · <span style={{color:"#39ff14"}}>Gallery TXID packing</span> — New way of packing gallery item inscription ID TXIDs makes them much more compressible. This brings large galleries (e.g. 10k items) below the 400,000 byte standardness limit, so they can be inscribed in a single normal transaction. <span style={{color:"#0d3d0d"}}>(#4490 by casey)</span>
-          </div>
-        </div>
-
-        <div>
-          <div style={{color:"#7fff7f",fontSize:10,letterSpacing:1,marginBottom:6,...mono}}>MISC</div>
-          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
-            · <span style={{color:"#39ff14"}}>Reduced test thread contention</span> — Internal improvement that makes the ord test suite run faster and more reliably for contributors. <span style={{color:"#0d3d0d"}}>(#4495 by casey)</span>
-          </div>
-          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
-            · <span style={{color:"#39ff14"}}>Hidden inscriptions excluded from /collections and /galleries</span> — Inscriptions flagged as hidden (e.g. cursed or unbound) no longer appear in collection and gallery listings, keeping those views clean. <span style={{color:"#0d3d0d"}}>(#4488 by casey)</span>
-          </div>
-          <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono,paddingLeft:12}}>
-            · <span style={{color:"#39ff14"}}>Allow missing current index when swapping</span> — Fixes an edge case where swapping sat positions would fail if the current index hadn&apos;t been fully built yet. Makes reindexing more resilient. <span style={{color:"#0d3d0d"}}>(#4487 by casey)</span>
-          </div>
-        </div>
-      </div>
-
-      <div style={{border:"1px solid #1a4a1a",padding:"16px",background:"rgba(57,255,20,0.02)",marginBottom:12}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <span style={{color:"#39ff14",fontSize:11,letterSpacing:1,...mono}}>GALLERIES DEBATE — ORDZAAR CONTROVERSY</span>
-          <span style={{color:"#0d3d0d",fontSize:9,...mono}}>MARCH 2026</span>
-        </div>
-        <div style={{color:"#1a6a1a",fontSize:11,lineHeight:1.8,...mono}}>
-          <p style={{margin:"0 0 10px 0"}}>After Magic Eden sunsetted Ordinals support, thousands of collections lost their off-chain metadata. Ordzaar launched a gallery mint to inscribe that data on-chain for ~5,481 ME-listed collections — charging a 2,500 sat platform fee per mint with random collection assignment.</p>
-          <p style={{margin:"0 0 10px 0"}}>The response was mixed. Critics pointed out that galleries are permissionless — anyone can inscribe one directly via ord for less. Concerns also arose around data quality, with scraped ME metadata often being incomplete or inaccurate, potentially locking bad data on-chain permanently. Some founders felt blindsided by random minters claiming their collection&apos;s gallery slot first.</p>
-          <p style={{margin:"0 0 10px 0"}}>Supporters argued it&apos;s a net positive for abandoned projects whose founders are long gone — without someone stepping up, that metadata disappears forever. The timing coincided with ord v0.27.0 shipping major gallery improvements, adding fuel to the broader conversation around on-chain provenance, parent-child vs. galleries, and who should control collection metadata.</p>
-          <p style={{margin:"0 0 4px 0",color:"#39ff14",fontStyle:"italic"}}>What are your thoughts? Share them in the comments below. ↓</p>
-        </div>
-      </div>
+      ))}
     </div>
   );
+}
+
+function NewsTab(): React.ReactElement {
+  const [posts,setPosts]=useState<NewsPost[]>([]);
+  const [loading,setLoading]=useState<boolean>(true);
+  useEffect(()=>{
+    fetch(`${API_BASE}/news`).then(r=>r.json()).then(setPosts).catch(()=>{}).finally(()=>setLoading(false));
+  },[]);
+  if(loading)return <div style={{color:"#1a6a1a",fontSize:11,fontFamily:"monospace"}}>LOADING NEWS...</div>;
+  return <NewsSection posts={posts} />;
 }
 
 function OrdCliGuide(): React.ReactElement {
@@ -1490,11 +1530,12 @@ export default function TulipGarden(): React.ReactElement {
           <>
             <div style={{color:"#1a8a1a",fontSize:11,letterSpacing:3,marginBottom:20,borderBottom:"1px solid #0d3d0d",paddingBottom:8}}>// TOOLS & MARKETPLACES</div>
             <div style={{display:"flex",gap:8,marginBottom:28,flexWrap:"wrap"}}>
-              {([["poll","⬡ SENTIMENT POLL"],["directory","⬡ LINKS"],["ord","⬡ ORD CLI"]] as [string, string][]).map(([k,label]: [string, string])=>(
+              {([["poll","⬡ SENTIMENT POLL"],["news","⬡ NEWS"],["directory","⬡ LINKS"],["ord","⬡ ORD CLI"]] as [string, string][]).map(([k,label]: [string, string])=>(
                 <button key={k} style={subBtn(toolsSubTab===k)} onClick={()=>setToolsSubTab(k)}>{label}</button>
               ))}
             </div>
             {toolsSubTab==="poll"&&<MarketplacePoll />}
+            {toolsSubTab==="news"&&<NewsTab />}
             {toolsSubTab==="directory"&&<MarketplaceDirectory />}
             {toolsSubTab==="ord"&&<OrdCliGuide />}
           </>

@@ -111,6 +111,14 @@ fn init_db(conn: &Connection) {
             reaction_type TEXT NOT NULL,
             ts INTEGER NOT NULL,
             PRIMARY KEY (comment_id, ip, reaction_type)
+        );
+        CREATE TABLE IF NOT EXISTS news (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            link TEXT NOT NULL DEFAULT '',
+            category TEXT NOT NULL DEFAULT 'general',
+            ts INTEGER NOT NULL
         );",
     )
     .expect("failed to initialize database");
@@ -677,6 +685,51 @@ async fn post_submission(
     }))
 }
 
+// --- News ---
+
+#[derive(Serialize)]
+struct NewsPost {
+    id: i64,
+    title: String,
+    content: String,
+    link: String,
+    category: String,
+    ts: i64,
+}
+
+#[derive(Deserialize)]
+struct NewsQuery {
+    limit: Option<i64>,
+}
+
+async fn get_news(
+    State(state): State<AppState>,
+    axum::extract::Query(query): axum::extract::Query<NewsQuery>,
+) -> Result<Json<Vec<NewsPost>>, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|_| AppError::Internal("db lock failed".into()))?;
+    let limit = query.limit.unwrap_or(1000);
+    let mut stmt = conn
+        .prepare("SELECT id, title, content, link, category, ts FROM news ORDER BY ts DESC LIMIT ?1")
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let rows = stmt
+        .query_map([limit], |row| {
+            Ok(NewsPost {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                content: row.get(2)?,
+                link: row.get(3)?,
+                category: row.get(4)?,
+                ts: row.get(5)?,
+            })
+        })
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let posts: Vec<NewsPost> = rows.flatten().collect();
+    Ok(Json(posts))
+}
+
 // --- Admin ---
 
 #[derive(Deserialize)]
@@ -690,6 +743,7 @@ struct AdminData {
     submissions: Vec<Submission>,
     poll_votes: HashMap<String, i64>,
     poll_voters: Vec<PollVoter>,
+    news: Vec<NewsPost>,
 }
 
 #[derive(Serialize)]
@@ -773,11 +827,31 @@ async fn admin_data(
         .flatten()
         .collect();
 
+    // News
+    let mut stmt4 = conn
+        .prepare("SELECT id, title, content, link, category, ts FROM news ORDER BY ts DESC")
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let news: Vec<NewsPost> = stmt4
+        .query_map([], |row| {
+            Ok(NewsPost {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                content: row.get(2)?,
+                link: row.get(3)?,
+                category: row.get(4)?,
+                ts: row.get(5)?,
+            })
+        })
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .flatten()
+        .collect();
+
     Ok(Json(AdminData {
         comments,
         submissions,
         poll_votes,
         poll_voters,
+        news,
     }))
 }
 
@@ -843,6 +917,90 @@ async fn delete_poll_voter(
     Ok(Json(serde_json::json!({"status": "poll reset"})))
 }
 
+#[derive(Deserialize)]
+struct AdminNewNews {
+    key: String,
+    title: String,
+    content: String,
+    link: Option<String>,
+    category: Option<String>,
+}
+
+async fn admin_create_news(
+    State(state): State<AppState>,
+    Json(body): Json<AdminNewNews>,
+) -> Result<Json<NewsPost>, AppError> {
+    check_admin_key(&Some(body.key))?;
+
+    let title = body.title.trim().to_string();
+    let content = body.content.trim().to_string();
+    let link = body.link.unwrap_or_default().trim().to_string();
+    let category = body.category.unwrap_or_else(|| "general".to_string());
+
+    if title.is_empty() {
+        return Err(AppError::BadRequest("title is required".into()));
+    }
+    if title.len() > 200 {
+        return Err(AppError::BadRequest("title too long (max 200 chars)".into()));
+    }
+    if content.is_empty() {
+        return Err(AppError::BadRequest("content is required".into()));
+    }
+    if content.len() > 10000 {
+        return Err(AppError::BadRequest("content too long (max 10000 chars)".into()));
+    }
+    if link.len() > 500 {
+        return Err(AppError::BadRequest("link too long (max 500 chars)".into()));
+    }
+    if !link.is_empty() && !link.starts_with("http://") && !link.starts_with("https://") {
+        return Err(AppError::BadRequest("link must start with http:// or https://".into()));
+    }
+    if !["release", "controversy", "general", "update"].contains(&category.as_str()) {
+        return Err(AppError::BadRequest(
+            "category must be release, controversy, general, or update".into(),
+        ));
+    }
+
+    let conn = state
+        .db
+        .lock()
+        .map_err(|_| AppError::Internal("db lock failed".into()))?;
+    let ts = now_ms();
+    conn.execute(
+        "INSERT INTO news (title, content, link, category, ts) VALUES (?1, ?2, ?3, ?4, ?5)",
+        rusqlite::params![title, content, link, category, ts],
+    )
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+    let id = conn.last_insert_rowid();
+    Ok(Json(NewsPost {
+        id,
+        title,
+        content,
+        link,
+        category,
+        ts,
+    }))
+}
+
+async fn admin_delete_news(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(body): Json<AdminDeleteBody>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    check_admin_key(&Some(body.key))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|_| AppError::Internal("db lock failed".into()))?;
+    let rows = conn
+        .execute("DELETE FROM news WHERE id = ?1", [id])
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    if rows == 0 {
+        return Err(AppError::NotFound("news post not found".into()));
+    }
+    Ok(Json(serde_json::json!({"deleted": id})))
+}
+
 // --- Main ---
 
 #[tokio::main]
@@ -890,10 +1048,13 @@ async fn main() {
             "/api/submissions",
             get(get_submissions).post(post_submission),
         )
+        .route("/api/news", get(get_news))
         .route("/api/admin", get(admin_data))
         .route("/api/admin/comments/{id}", axum::routing::delete(delete_comment))
         .route("/api/admin/submissions/{id}", axum::routing::delete(delete_submission))
         .route("/api/admin/poll/reset", post(delete_poll_voter))
+        .route("/api/admin/news", post(admin_create_news))
+        .route("/api/admin/news/{id}", axum::routing::delete(admin_delete_news))
         .layer(cors)
         .with_state(state);
 
