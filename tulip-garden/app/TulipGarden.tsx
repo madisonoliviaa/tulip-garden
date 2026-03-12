@@ -101,6 +101,7 @@ const MARKETPLACES: Marketplace[] = [
   { id: "satflow", name: "Satflow", url: "https://www.satflow.com", type: "marketplace" },
   { id: "ordzaar", name: "Ordzaar", url: "https://ordzaar.com", type: "both" },
   { id: "magisat", name: "Magisat", url: "https://magisat.io/collections", type: "marketplace" },
+  { id: "ordnet", name: "ord.net (coming soon)", url: "https://ord.net", type: "marketplace" },
   { id: "ord", name: "ord CLI", url: "https://github.com/ordinals/ord/releases/tag/0.27.0", type: "tool" },
 ];
 

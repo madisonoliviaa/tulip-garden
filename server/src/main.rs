@@ -71,7 +71,7 @@ impl IntoResponse for AppError {
 
 // --- Constants ---
 
-const POLL_OPTIONS: &[&str] = &["ordinalswallet", "unisat", "gamma", "trio", "orddropz", "satflow", "ordzaar", "magisat"];
+const POLL_OPTIONS: &[&str] = &["ordinalswallet", "unisat", "gamma", "trio", "orddropz", "satflow", "ordzaar", "magisat", "ordnet"];
 
 // --- Database ---
 
