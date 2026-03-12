@@ -883,7 +883,7 @@ function RestrictedTerminal({ onUnlock }: RestrictedTerminalProps): React.ReactE
 }
 
 
-const TOOLS: [string, string][] = [["OrdinalsBot","ordinalsbot.com"],["UniSat","unisat.io/inscribe"],["Gamma","gamma.io/inscribe"],["OrdDropz","ord-dropz.xyz"],["ord CLI","docs.ordinals.com"]];
+const TOOLS: [string, string][] = [["OrdinalsBot","ordinalsbot.com"],["UniSat","unisat.io/inscribe"],["Gamma","gamma.io/inscribe"],["Ordinals Wallet","ordinalswallet.com"],["OrdDropz","ord-dropz.xyz"],["Trio","trio.xyz"],["Satflow","satflow.com"],["Ordzaar","ordzaar.com"],["Magisat","magisat.io"],["ord CLI","docs.ordinals.com"]];
 function ToolChooser(): React.ReactElement {
   const [clicks, setClicks] = useState<Record<string, number>>({});
   useEffect(() => {
